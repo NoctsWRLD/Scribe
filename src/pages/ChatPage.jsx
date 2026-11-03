@@ -1,11 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMessages, useFriends, sendMessage, deleteMessage, getDmChatId } from '../hooks/useChat';
-import { useSubjects } from '../hooks/useFirestore';
 import { useAuth } from '../contexts/AuthContext';
 import { useI18n } from '../i18n';
 import { safeHttpsUrl } from '../utils/safeUrl';
-import { schoolChatId, subjectChatId } from '../utils/chatChannels';
+import { schoolChatId } from '../utils/chatChannels';
 import { ChatIcon, MenuIcon, PlusIcon, TrashIcon, XIcon } from '../components/icons';
 
 /** Messages closer together than this, from the same person, share a header. */
@@ -317,7 +316,6 @@ function RoomList({ rooms, activeChatId, onSelect }) {
 export default function ChatPage() {
   const { t } = useI18n();
   const { currentUser, userProfile } = useAuth();
-  const { subjects } = useSubjects();
   const { friends } = useFriends();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedId, setSelectedId] = useState('general');
@@ -326,12 +324,6 @@ export default function ChatPage() {
   const school = userProfile?.school?.trim();
   const rooms = [
     { id: 'general', name: t('Splošni'), kind: 'channel', type: t('Skupni kanal') },
-    ...subjects.map((subject) => ({
-      id: subjectChatId(subject.name),
-      name: subject.name,
-      kind: 'channel',
-      type: t('Kanal predmeta'),
-    })),
     ...(school
       ? [{ id: schoolChatId(school), name: school, kind: 'channel', type: t('Šolski kanal') }]
       : []),
