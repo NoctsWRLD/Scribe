@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { englishMissing, MESSAGE_COUNT, messages, translate } from './messages.js';
 import { counted, nounForm } from './plural.js';
-import { detectLocale, isLocale, LOCALES, normalizeLocale } from './locales.js';
+import { detectLocale, isLocale, LOCALES, normalizeLocale, resolveLocale } from './locales.js';
 
 const ROOT = resolve(process.cwd(), 'src');
 
@@ -77,6 +77,11 @@ describe('i18n dictionary', () => {
   it('reads the browser language, and ignores one it does not have', () => {
     expect(detectLocale(['de-AT', 'en'])).toBe('de');
     expect(detectLocale(['fr-FR'])).toBe('sl');
+  });
+
+  it('applies the latest choice before a stale profile value and scopes it to its account', () => {
+    expect(resolveLocale({ uid: 'account-1', locale: 'de' }, 'account-1', 'en', 'sl')).toBe('de');
+    expect(resolveLocale({ uid: 'account-1', locale: 'de' }, 'account-2', 'en', 'sl')).toBe('en');
   });
 });
 

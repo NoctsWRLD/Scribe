@@ -68,7 +68,7 @@ function FaqItem({ question, answer }) {
 }
 
 export default function LandingPage() {
-  const { t, localeTag } = useI18n();
+  const { t, locale, localeTag, setLocale } = useI18n();
   const weekStart = getWeekStart(getSlovenianDateKey());
 
   useSeo({
@@ -194,8 +194,17 @@ export default function LandingPage() {
             </div>
             <div>
               <ul className="flex flex-wrap gap-x-8 gap-y-2 font-display text-2xl text-rp-text" lang="">
-                {LOCALES.map((locale) => (
-                  <li key={locale.id} lang={locale.htmlLang}>{locale.label}</li>
+                {LOCALES.map((item) => (
+                  <li key={item.id} lang={item.htmlLang}>
+                    <button
+                      type="button"
+                      onClick={() => setLocale(item.id)}
+                      aria-pressed={locale === item.id}
+                      className="transition-colors hover:text-rp-accent focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-rp-accent"
+                    >
+                      {item.label}
+                    </button>
+                  </li>
                 ))}
               </ul>
               <p className="mt-5 max-w-lg text-body text-rp-muted">

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { app } from '../firebase';
-import { DEFAULT_LOCALE, detectLocale, getLocale, isLocale, normalizeLocale } from './locales';
+import { DEFAULT_LOCALE, detectLocale, getLocale, isLocale, normalizeLocale, resolveLocale } from './locales';
 import { translate } from './messages';
 import { counted, nounForm } from './plural';
 
@@ -31,9 +31,11 @@ export function I18nProvider({ children }) {
   const { currentUser, userProfile } = useAuth();
   const currentUid = currentUser?.uid;
   const [local, setLocal] = useState(readStoredLocale);
+  const [selection, setSelection] = useState(null);
 
-  // A language saved on the account wins over this browser's last choice.
-  const locale = normalizeLocale(userProfile?.locale) || local;
+  // An explicit choice takes effect immediately, even before the account write
+  // returns its updated profile. A selection from another account is ignored.
+  const locale = resolveLocale(selection, currentUid, userProfile?.locale, local);
 
   const meta = getLocale(locale);
 
@@ -44,6 +46,7 @@ export function I18nProvider({ children }) {
   const setLocale = useCallback(
     async (next) => {
       if (!isLocale(next)) return;
+      setSelection({ uid: currentUid ?? null, locale: next });
       setLocal(next);
       try {
         localStorage.setItem(STORAGE_KEY, next);

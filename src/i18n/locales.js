@@ -29,6 +29,15 @@ export function normalizeLocale(value) {
   return isLocale(value) ? value : null;
 }
 
+/** An explicit choice wins for the account session in which it was made. */
+export function resolveLocale(selection, currentUid, profileLocale, localLocale) {
+  const selectedLocale = selection?.uid === (currentUid ?? null) ? selection.locale : null;
+  return normalizeLocale(selectedLocale)
+    || normalizeLocale(profileLocale)
+    || normalizeLocale(localLocale)
+    || DEFAULT_LOCALE;
+}
+
 export function getLocale(id) {
   return LOCALES.find((locale) => locale.id === id) || LOCALES[0];
 }
