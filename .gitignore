@@ -26,3 +26,7 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Agent tooling. The skills are installed in ~/.config/opencode/skills so every
+# project has them; the local copy is a convenience and is not part of the app.
+.opencode/

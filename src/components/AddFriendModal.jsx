@@ -1,281 +1,216 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Modal from './Modal';
 import { useAuth } from '../contexts/AuthContext';
-import { useAllUsers, sendFriendRequest } from '../hooks/useChat';
+import { useAllUsers, useFriendCode, sendFriendRequest } from '../hooks/useChat';
 import { lookupUserByCode } from '../services/friendService';
-import { isValidCode, normalizeCode } from '../utils/friendCode';
-import { PlusIcon, SearchIcon } from './icons';
+import { CODE_LENGTH, isValidCode, normalizeCode } from '../utils/friendCode';
+import { useI18n } from '../i18n';
+import { SearchIcon } from './icons';
 
 /**
- * Adding a friend.
+ * Adding a friend — one field.
  *
- * Two ways in, because a classroom full of students often shares one name:
- * the code a classmate sends you, and the name you know them by. The code is
- * the exact answer; the name search shows a hint of each person's code so the
- * right one can be picked.
+ * The student types either the six-character code a classmate gave them or
+ * the classmate's name. A complete code is looked up exactly; anything else
+ * searches by name. Each result has one button that sends the request.
+ *
+ * The student's own code sits at the top, because the most common reason to
+ * open this dialog is "my friend asked for my code".
  */
-export default function AddFriendModal({ isOpen, onClose, onSent, initialUser = null, excludeUids = [] }) {
-  const { currentUser } = useAuth();
-  const [tab, setTab] = useState('code');
-  const [code, setCode] = useState('');
-  const [lookup, setLookup] = useState({ state: 'idle' });
-  const [name, setName] = useState('');
-  const [selected, setSelected] = useState(null);
-  const [sending, setSending] = useState(false);
-  const [message, setMessage] = useState(null);
 
-  const { users } = useAllUsers(name);
+/** Typed text that is shaped like a code: six code characters, nothing else. */
+function asCode(raw) {
+  const compact = raw.replace(/[\s-]/g, '');
+  const code = normalizeCode(compact);
+  return code.length === CODE_LENGTH && compact.length === CODE_LENGTH ? code : null;
+}
 
-  const visibleUsers = useMemo(
-    () => users.filter((user) => !excludeUids.includes(user.uid)),
-    [users, excludeUids],
+function Avatar({ name }) {
+  return (
+    <span
+      className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-rp-overlay text-small font-bold text-rp-text"
+      aria-hidden="true"
+    >
+      {(name?.[0] || '?').toUpperCase()}
+    </span>
   );
+}
+
+export default function AddFriendModal({ isOpen, onClose, onSent, excludeUids = [] }) {
+  const { currentUser, userProfile } = useAuth();
+  const { t } = useI18n();
+  const inputRef = useRef(null);
+  const [term, setTerm] = useState('');
+  const [codeMatch, setCodeMatch] = useState({ state: 'idle' });
+  const [sentTo, setSentTo] = useState([]);
+  const [sendingUid, setSendingUid] = useState(null);
+  const [message, setMessage] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  const { code: ownCode, loading: codeLoading } = useFriendCode(currentUser, userProfile?.friendCode, userProfile);
+
+  const code = asCode(term);
+  // A complete code is an exact lookup, not a name search.
+  const { users } = useAllUsers(code ? '' : term);
 
   useEffect(() => {
     if (!isOpen) return;
-    setTab(initialUser ? 'name' : 'code');
-    setCode('');
-    setLookup({ state: 'idle' });
-    setName('');
-    setSelected(initialUser || null);
+    setTerm('');
+    setCodeMatch({ state: 'idle' });
+    setSentTo([]);
     setMessage(null);
-  }, [isOpen, initialUser]);
+    setCopied(false);
+  }, [isOpen]);
 
-  const normalizedCode = useMemo(() => normalizeCode(code), [code]);
-
-  async function handleLookup() {
-    setMessage(null);
-    if (!isValidCode(normalizedCode)) {
-      setLookup({ state: 'idle' });
-      setMessage('Koda mora imeti 6 znakov.');
-      return;
+  useEffect(() => {
+    if (!code || !isValidCode(code)) {
+      setCodeMatch({ state: 'idle' });
+      return undefined;
     }
-    setLookup({ state: 'loading' });
-    try {
-      const result = await lookupUserByCode(normalizedCode);
-      if (result.status === 'found') {
-        if (result.user.uid === currentUser?.uid) {
-          setLookup({ state: 'idle' });
-          setMessage('Ta koda je tvoja. Išči prijateljevo kodo.');
-          return;
+    let cancelled = false;
+    setCodeMatch({ state: 'loading' });
+    lookupUserByCode(code)
+      .then((result) => {
+        if (cancelled) return;
+        if (result.status === 'found') {
+          setCodeMatch(
+            result.user.uid === currentUser?.uid ? { state: 'self' } : { state: 'found', user: result.user },
+          );
+        } else {
+          setCodeMatch({ state: result.status === 'gone' ? 'gone' : 'missing' });
         }
-        setLookup({ state: 'found', user: result.user });
-        return;
-      }
-      setLookup({ state: 'idle' });
-      setMessage(
-        result.status === 'invalid'
-          ? 'Koda mora imeti 6 znakov.'
-          : result.status === 'gone'
-            ? 'Ta oseba računa ni več.'
-            : 'Nobene osebe s to kodo ni. Preveri, ali je koda pravilna.',
-      );
-    } catch (error) {
-      console.error('Iskanje po kodi ni uspelo:', error);
-      setLookup({ state: 'idle' });
-      setMessage('Kode ni bilo mogoče preveriti. Poskusi znova.');
+      })
+      .catch((error) => {
+        console.error('Iskanje po kodi ni uspelo:', error);
+        if (!cancelled) setCodeMatch({ state: 'error' });
+      });
+    return () => { cancelled = true; };
+  }, [code, currentUser?.uid]);
+
+  const results = useMemo(() => {
+    const list = code ? (codeMatch.state === 'found' ? [codeMatch.user] : []) : users;
+    return list.filter((user) => user && !excludeUids.includes(user.uid));
+  }, [code, codeMatch, users, excludeUids]);
+
+  const alreadyConnected = code && codeMatch.state === 'found' && excludeUids.includes(codeMatch.user.uid);
+
+  async function copyOwnCode() {
+    if (!ownCode) return;
+    try {
+      await navigator.clipboard.writeText(ownCode);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setMessage(t('Kopiranje ni uspelo. Kodo prepiši ročno: {code}', { code: ownCode }));
     }
   }
 
-  async function handleSend(user) {
-    if (!user) return;
-    setSending(true);
+  async function add(user) {
+    setSendingUid(user.uid);
     setMessage(null);
     try {
-      const result = await sendFriendRequest(currentUser, user.uid, user.displayName || 'Učenec');
+      const result = await sendFriendRequest(currentUser, user.uid, user.displayName || t('Učenec'));
       if (result.ok) {
-        setMessage(`Zahteva je poslana: ${user.displayName || 'Učenec'}.`);
+        setSentTo((previous) => [...previous, user.uid]);
         onSent?.();
-        window.setTimeout(onClose, 900);
         return;
       }
       setMessage(
-        result.reason === 'self'
-          ? 'To si ti.'
-          : result.reason === 'exists'
-            ? 'Zahteva je že poslana ali pa sta že prijatelja.'
-            : 'Zahteve ni bilo mogoče poslati. Poskusi znova.',
+        result.reason === 'exists'
+          ? t('Zahteva je že poslana ali pa sta že prijatelja.')
+          : t('Zahteve ni bilo mogoče poslati. Poskusi znova.'),
       );
     } catch (error) {
       console.error('Pošiljanje zahteve ni uspelo:', error);
-      setMessage('Zahteve ni bilo mogoče poslati. Poskusi znova.');
+      setMessage(t('Zahteve ni bilo mogoče poslati. Poskusi znova.'));
     } finally {
-      setSending(false);
+      setSendingUid(null);
     }
   }
 
+  const trimmed = term.trim();
+  let hint = null;
+  if (code) {
+    if (codeMatch.state === 'loading') hint = t('Preverjam kodo…');
+    else if (codeMatch.state === 'self') hint = t('To je tvoja koda. Vpiši kodo sošolca.');
+    else if (codeMatch.state === 'missing') hint = t('Nihče nima te kode. Preveri, ali je prepisana pravilno.');
+    else if (codeMatch.state === 'gone') hint = t('Ta račun ne obstaja več.');
+    else if (codeMatch.state === 'error') hint = t('Kode ni bilo mogoče preveriti. Poskusi znova.');
+    else if (alreadyConnected) hint = t('S to osebo sta že povezana.');
+  } else if (trimmed.length === 1) {
+    hint = t('Vpiši vsaj 2 črki imena.');
+  } else if (trimmed.length >= 2 && results.length === 0) {
+    hint = t('Nihče s tem imenom. Poskusi s kodo.');
+  }
+
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Dodaj prijatelja"
-      description="Poišči sošolca po kodi, ki jo dobiš od njega, ali pa po imenu."
-      size="lg"
-    >
-      <div className="flex gap-1 rounded-md bg-rp-overlay p-1" role="tablist" aria-label="Način iskanja">
-        {[
-          { key: 'code', label: 'Po kodah' },
-          { key: 'name', label: 'Po imenu' },
-        ].map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            role="tab"
-            aria-selected={tab === item.key}
-            onClick={() => { setTab(item.key); setMessage(null); }}
-            className={`flex-1 rounded-xs px-3 py-2 text-small font-semibold transition-colors ${
-              tab === item.key ? 'bg-rp-raised text-rp-text' : 'text-rp-muted hover:text-rp-text'
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
+    <Modal isOpen={isOpen} onClose={onClose} title={t('Dodaj prijatelja')} initialFocusRef={inputRef}>
+      <div className="flex items-center gap-3 rounded-md bg-rp-sunken px-3 py-2.5">
+        <div className="min-w-0 flex-1">
+          <p className="text-small text-rp-muted">{t('Tvoja koda')}</p>
+          <p className="mono text-subtitle tracking-[0.18em] text-rp-text">
+            {ownCode || (codeLoading ? '······' : '—')}
+          </p>
+        </div>
+        <button type="button" onClick={copyOwnCode} disabled={!ownCode} className="btn btn-sm shrink-0">
+          {copied ? t('Kopirano') : t('Kopiraj')}
+        </button>
       </div>
 
-      {tab === 'code' ? (
-        <div className="mt-4">
-          <label className="field-label" htmlFor="friend-code">Prijateljeva koda</label>
-          <div className="flex gap-2">
-            <input
-              id="friend-code"
-              value={code}
-              onChange={(event) => setCode(normalizeCode(event.target.value).slice(0, 6))}
-              placeholder="K7M2QX"
-              autoComplete="off"
-              spellCheck="false"
-              inputMode="text"
-              className="field mono !text-lg !tracking-[0.2em] uppercase"
-            />
-            <button
-              type="button"
-              onClick={handleLookup}
-              disabled={lookup.state === 'loading' || normalizedCode.length < 6}
-              className="btn shrink-0 !px-4"
-            >
-              {lookup.state === 'loading' ? 'Iščem…' : 'Poišči'}
-            </button>
-          </div>
-          <p className="mt-2 text-small text-rp-muted">
-            Koda ima 6 znakov. Dobiš jo sošolca v klepetu ali pa v njegovih nastavitvah.
-          </p>
+      <label htmlFor="friend-term" className="field-label mt-5">{t('Koda ali ime sošolca')}</label>
+      <div className="relative">
+        <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-rp-muted" />
+        <input
+          ref={inputRef}
+          id="friend-term"
+          type="search"
+          value={term}
+          onChange={(event) => setTerm(event.target.value.slice(0, 60))}
+          placeholder={t('npr. K7M2QX ali Ana Novak')}
+          autoComplete="off"
+          autoCapitalize="none"
+          spellCheck="false"
+          enterKeyHint="search"
+          className={`field !pl-9 ${code ? 'mono uppercase tracking-[0.18em]' : ''}`}
+        />
+      </div>
 
-          {lookup.state === 'found' && lookup.user && (
-            <div className="ledger mt-4 flex items-center gap-3 px-3 py-3">
-              <span
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rp-accent/12 font-bold text-rp-accent"
-                aria-hidden="true"
-              >
-                {(lookup.user.displayName?.[0] || '?').toUpperCase()}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-body font-semibold text-rp-text">
-                  {lookup.user.displayName || 'Učenec'}
-                </span>
-                <span className="mono block text-small text-rp-muted">{normalizedCode}</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => handleSend(lookup.user)}
-                disabled={sending}
-                className="btn btn-primary shrink-0 !px-3.5 !py-2 !text-small"
-              >
-                {sending ? 'Pošiljam…' : 'Pošlji zahtevo'}
-              </button>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="mt-4">
-          <label className="relative block">
-            <span className="sr-only">Išči po imenu</span>
-            <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-rp-muted" />
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Išči po imenu… (vsaj 2 znaka)"
-              className="field !pl-9"
-            />
-          </label>
+      {hint && (
+        <p className="mt-2 text-small text-rp-muted" aria-live="polite">{hint}</p>
+      )}
 
-          <div className="ledger mt-3">
-            {visibleUsers.length === 0 && name.trim().length >= 2 && (
-              <p className="px-3 py-3 text-small text-rp-muted">Ni zadetkov.</p>
-            )}
-            {visibleUsers.map((user) => {
-              const isSelected = selected?.uid === user.uid;
-              return (
-                <div
-                  key={user.uid}
-                  className="ledger-row flex items-center gap-3 px-3 py-2.5"
-                  data-selected={isSelected}
-                >
+      {results.length > 0 && (
+        <ul className="ledger mt-3" aria-label={t('Zadetki')}>
+          {results.map((user) => {
+            const sent = sentTo.includes(user.uid);
+            const name = user.displayName || t('Učenec');
+            return (
+              <li key={user.uid} className="ledger-row flex items-center gap-3 py-2 pl-1 pr-1">
+                <Avatar name={name} />
+                <span className="min-w-0 flex-1 truncate text-body font-medium text-rp-text">{name}</span>
+                {sent ? (
+                  <span className="shrink-0 px-2 text-small font-semibold text-rp-success" role="status">
+                    {t('Zahteva poslana')}
+                  </span>
+                ) : (
                   <button
                     type="button"
-                    onClick={() => setSelected(user)}
-                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    onClick={() => add(user)}
+                    disabled={sendingUid === user.uid}
+                    className="btn btn-primary btn-sm shrink-0"
+                    aria-label={t('Dodaj {name} med prijatelje', { name })}
                   >
-                    <span
-                      className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-rp-accent/12 text-small font-bold text-rp-accent"
-                      aria-hidden="true"
-                    >
-                      {(user.displayName?.[0] || '?').toUpperCase()}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-body font-medium text-rp-text">
-                      {user.displayName || 'Učenec'}
-                    </span>
+                    {sendingUid === user.uid ? t('Pošiljam…') : t('Dodaj')}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelected(user)}
-                    disabled={sending}
-                    aria-label={`Izberi ${user.displayName || 'učenca'}`}
-                    aria-pressed={isSelected}
-                    className={`grid h-8 w-8 shrink-0 place-items-center rounded-md border transition-colors disabled:opacity-50 ${
-                      isSelected
-                        ? 'border-rp-accent bg-rp-accent text-rp-accent-ink'
-                        : 'border-rp-line text-rp-subtle hover:border-rp-accent hover:text-rp-accent'
-                    }`}
-                  >
-                    <PlusIcon className="h-4 w-4" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-          {selected && (
-            <div className="ledger mt-4 flex items-center gap-3 px-3 py-3">
-              <span
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-rp-accent/12 font-bold text-rp-accent"
-                aria-hidden="true"
-              >
-                {(selected.displayName?.[0] || '?').toUpperCase()}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-body font-semibold text-rp-text">
-                  {selected.displayName || 'Učenec'}
-                </span>
-                <span className="block text-small text-rp-muted">
-                  Pošlji zahtevo za prijateljstvo.
-                </span>
-              </span>
-              <button
-                type="button"
-                onClick={() => handleSend(selected)}
-                disabled={sending}
-                className="btn btn-primary shrink-0 !px-3.5 !py-2 !text-small"
-              >
-                {sending ? 'Pošiljam…' : 'Pošlji zahtevo'}
-              </button>
-            </div>
-          )}
-        </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       )}
 
       {message && (
-        <p className="mt-4 text-small text-rp-subtle" role="status" aria-live="polite">
-          {message}
-        </p>
+        <p className="mt-3 text-small text-rp-subtle" role="status" aria-live="polite">{message}</p>
       )}
     </Modal>
   );

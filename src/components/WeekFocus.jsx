@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
 import { useFocusSessions } from '../hooks/useStudy';
-import { addDaysToDateKey, getSlovenianDateKey } from '../utils/dates';
+import { addDaysToDateKey, formatDate, getSlovenianDateKey } from '../utils/dates';
+import { useI18n } from '../i18n';
 
-const DAY_LETTERS = ['P', 'T', 'S', 'Č', 'P', 'S', 'N'];
-
+/** Seven days of focus minutes, one rail segment per day. */
 export default function WeekFocus() {
+  const { t, tn, localeTag } = useI18n();
   const { sessions } = useFocusSessions();
   const today = getSlovenianDateKey();
 
@@ -30,49 +31,47 @@ export default function WeekFocus() {
     return count;
   }, [days]);
 
-  const segments = days.map((day) => ({
-    key: day.key,
-    value: day.minutes / max,
-    tone: day.minutes === 0 ? 'empty' : day.isToday ? 'warn' : 'accent',
-    label: DAY_LETTERS[(new Date(`${day.key}T12:00:00Z`).getUTCDay() + 6) % 7],
-    today: day.isToday,
-    hint: `${day.minutes} minut fokusa`,
-  }));
+  const minuteForms = { one: t('minuta'), two: t('minuti'), few: t('minute'), other: t('minut') };
+  const dayForms = { one: t('dan'), two: t('dneva'), few: t('dnevi'), other: t('dni') };
 
   return (
-    <section className="sheet px-5 py-4" aria-label="Fokus ta teden">
+    <section className="border-t border-rp-line pt-4" aria-label={t('Fokus ta teden')}>
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-body font-semibold text-rp-text">Fokus ta teden</h2>
-        <p className="mono text-small font-semibold text-rp-muted">{total} min</p>
+        <h2 className="text-small font-semibold text-rp-muted">{t('Fokus ta teden')}</h2>
+        <p className="mono text-small font-semibold text-rp-text">{tn(total, minuteForms)}</p>
       </div>
 
-      <ul className="rail mt-3" aria-label={`${total} minut fokusa v zadnjih 7 dneh`}>
-        {segments.map((segment) => (
-          <li key={segment.key} className="rail-seg" data-tone={segment.tone}>
-            <span aria-hidden="true" style={{ width: `${Math.round(segment.value * 100)}%` }} />
-            <span className="sr-only">{segment.hint}</span>
+      <ul className="rail mt-3">
+        {days.map((day) => (
+          <li
+            key={day.key}
+            className="rail-seg"
+            data-tone={day.minutes === 0 ? 'empty' : day.isToday ? 'warn' : 'accent'}
+          >
+            <span aria-hidden="true" style={{ width: `${Math.round((day.minutes / max) * 100)}%` }} />
+            <span className="sr-only">
+              {formatDate(day.key, { weekday: 'long' }, localeTag)}: {tn(day.minutes, minuteForms)}
+            </span>
           </li>
         ))}
       </ul>
-      <ul className="mt-2 flex gap-[3px]" aria-hidden="true">
-        {segments.map((segment) => (
+      <ul className="mt-1.5 flex gap-[3px]" aria-hidden="true">
+        {days.map((day) => (
           <li
-            key={segment.key}
-            className={`flex-1 text-center text-[11px] leading-4 ${
-              segment.today ? 'font-semibold text-rp-accent' : 'text-rp-muted'
-            }`}
+            key={day.key}
+            className={`flex-1 text-center text-[11px] leading-4 ${day.isToday ? 'font-semibold text-rp-accent' : 'text-rp-muted'}`}
           >
-            {segment.label}
+            {formatDate(day.key, { weekday: 'narrow' }, localeTag)}
           </li>
         ))}
       </ul>
 
-      <p className="mt-3 border-t border-rp-line pt-3 text-small text-rp-muted">
+      <p className="mt-3 text-small text-rp-muted">
         {streak >= 2
-          ? `${streak}-dnevni niz. Kar tako naprej.`
+          ? t('Fokus {count} zapored.', { count: tn(streak, dayForms) })
           : total === 0
-            ? 'Zaženi timer in vsaka Seja se zabeleži tukaj.'
-            : 'Vsaka zabeležena seja gradi tvoj niz.'}
+            ? t('Zaženi časovnik. Vsaka končana seja se zapiše tukaj.')
+            : t('Vsaka končana seja podaljša niz.')}
       </p>
     </section>
   );

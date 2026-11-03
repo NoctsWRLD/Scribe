@@ -28,7 +28,7 @@ export const NAV_GROUPS = [
 ];
 
 /** The five destinations the mobile bottom bar carries. */
-export const PRIMARY_PATHS = ['/dashboard', '/tasks', '/exams', '/flashcards', '/schedule'];
+export const PRIMARY_PATHS = ['/dashboard', '/tasks', '/exams', '/schedule', '/chat'];
 
 export const ACCOUNT_LINKS = [
   { to: '/profile', label: 'Moj profil', icon: 'user' },

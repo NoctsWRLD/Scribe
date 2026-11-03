@@ -3,9 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { AuthField, AuthShell, AuthSubmit } from '../components/AuthShell';
 import { useSeo } from '../hooks/useSeo';
+import { useI18n } from '../i18n';
+import { MIN_PASSWORD_LENGTH, passwordScore, validatePassword } from '../utils/password';
 
 export default function RegisterPage() {
   const { register, currentUser } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -14,32 +17,41 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useSeo({ title: 'Ustvari račun', description: 'Ustvari Scribe račun in dodaj prvega predmeta.', path: '/register' });
+  useSeo({
+    title: t('Ustvari račun'),
+    description: t('Ustvari Scribe račun in dodaj prvega predmeta.'),
+    path: '/register',
+  });
 
   useEffect(() => {
     if (currentUser) navigate('/dashboard', { replace: true });
   }, [currentUser, navigate]);
 
+  const check = validatePassword(password);
+  const score = passwordScore(password);
+
   async function handleSubmit(event) {
     event.preventDefault();
-    if (password !== confirm) {
-      setError('Gesli se ne ujemata.');
+    if (!check.ok) {
+      setError(t('Geslo naj ima vsaj 10 znakov.'));
       return;
     }
-    if (password.length < 6) {
-      setError('Geslo naj ima vsaj 6 znakov.');
+    if (password !== confirm) {
+      setError(t('Gesli se ne ujemata.'));
       return;
     }
     setError('');
     setLoading(true);
     try {
-      await register(email, password, name);
+      await register(email, password, name.trim());
       navigate('/dashboard');
     } catch (registerError) {
       if (registerError.code === 'auth/email-already-in-use') {
-        setError('Ta e-pošta je že v uporabi.');
+        setError(t('Ta e-pošta je že v uporabi.'));
+      } else if (registerError.code === 'auth/weak-password') {
+        setError(t('Geslo naj ima vsaj 10 znakov.'));
       } else {
-        setError('Registracija ni uspela. Preveri podatke in poskusi znova.');
+        setError(t('Registracija ni uspela. Preveri podatke in poskusi znova.'));
       }
     }
     setLoading(false);
@@ -47,14 +59,19 @@ export default function RegisterPage() {
 
   return (
     <AuthShell
-      title="Ustvari račun"
-      subtitle="Račun ustvariš v enem koraku."
+      title={t('Ustvari račun')}
+      subtitle={t('Za naloge, teste in urnik. Brezplačno in brez oglasov.')}
       error={error}
-      footer={<>Že imaš račun? <Link to="/login" className="font-semibold text-rp-accent hover:underline">Prijavi se</Link></>}
+      footer={
+        <>
+          {t('Že imaš račun?')}{' '}
+          <Link to="/login" className="font-semibold text-rp-accent hover:underline">{t('Prijava')}</Link>
+        </>
+      }
     >
-      <form onSubmit={handleSubmit} className="grid gap-3.5">
+      <form onSubmit={handleSubmit} className="grid gap-4">
         <AuthField
-          label="Ime"
+          label={t('Ime')}
           id="register-name"
           type="text"
           required
@@ -65,7 +82,7 @@ export default function RegisterPage() {
           autoComplete="name"
         />
         <AuthField
-          label="E-pošta"
+          label={t('E-pošta')}
           id="register-email"
           type="email"
           required
@@ -74,29 +91,46 @@ export default function RegisterPage() {
           placeholder="tia@sola.si"
           autoComplete="username"
         />
-        <div className="grid gap-3.5 sm:grid-cols-2">
+        <div className="grid gap-4">
           <AuthField
-            label="Geslo"
+            label={t('Geslo')}
             id="register-password"
             type="password"
             required
+            minLength={MIN_PASSWORD_LENGTH}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            placeholder="••••••••"
+            placeholder="••••••••••"
             autoComplete="new-password"
           />
           <AuthField
-            label="Ponovi geslo"
+            label={t('Ponovi geslo')}
             id="register-confirm"
             type="password"
             required
+            minLength={MIN_PASSWORD_LENGTH}
             value={confirm}
             onChange={(event) => setConfirm(event.target.value)}
-            placeholder="••••••••"
+            placeholder="••••••••••"
             autoComplete="new-password"
           />
         </div>
-        <AuthSubmit loading={loading} idle="Ustvari račun" busy="Ustvarjam…" />
+
+        <div>
+          <div className="flex gap-1" aria-hidden="true">
+            {[0, 1, 2].map((step) => (
+              <span
+                key={step}
+                className={`h-1 flex-1 rounded-full ${step < score ? 'bg-rp-mark' : 'bg-rp-fill'}`}
+              />
+            ))}
+          </div>
+          <p className="mt-1.5 text-small text-rp-muted">
+            {t('Vsaj 10 znakov. Dolgo geslo je varnejše od zapletenega.')}
+          </p>
+        </div>
+
+        <AuthSubmit loading={loading} idle={t('Ustvari račun')} busy={t('Ustvarjam…')} />
       </form>
     </AuthShell>
   );

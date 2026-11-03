@@ -1,8 +1,10 @@
 import { getDayOfYear, getSlovenianDateKey } from '../utils/dates';
+import { useI18n } from '../i18n';
 
-const TIPS = [
-  { title: 'Preverjaj spomin', copy: 'Zapri zapiske in si z lastnimi besedimi razloži tri glavne ideje.' },
-  { title: 'Uči se v rundah', copy: 'Razdeli snov na manjše sklope in vmes naredi kratek odmor.' },
+/* Keys are Slovenian source strings; translations live in i18n/messages.js. */
+const STUDY_TIPS = [
+  { title: 'Preverjaj spomin', copy: 'Zapri zapiske in s svojimi besedami razloži tri glavne ideje.' },
+  { title: 'Uči se v krogih', copy: 'Razdeli snov na manjše sklope in vmes naredi kratek odmor.' },
   { title: 'Povej na glas', copy: 'Razloži snov, kot da jo učiš prijatelja.' },
   { title: 'Začni z vprašanjem', copy: 'Zapiši si, kaj želiš razumeti, preden začneš.' },
   { title: 'Ponavljaj z razmikom', copy: 'Vrni se čez dan, čez nekaj dni in čez teden.' },
@@ -11,12 +13,12 @@ const TIPS = [
 ];
 
 export default function StudyTipCard() {
-  const tip = TIPS[getDayOfYear(getSlovenianDateKey()) % TIPS.length];
+  const { t } = useI18n();
+  const tip = STUDY_TIPS[getDayOfYear(getSlovenianDateKey()) % STUDY_TIPS.length];
   return (
-    <section className="margin-rule" aria-labelledby="study-tip-title">
-      <p className="text-label text-rp-muted">Namig za danes</p>
-      <h2 id="study-tip-title" className="mt-1.5 text-body font-semibold text-rp-text">{tip.title}</h2>
-      <p className="mt-1.5 text-small leading-5 text-rp-muted">{tip.copy}</p>
+    <section className="border-t border-rp-line pt-4" aria-labelledby="study-tip-title">
+      <h2 id="study-tip-title" className="text-body font-semibold text-rp-text">{t(tip.title)}</h2>
+      <p className="mt-1 text-small text-rp-muted">{t(tip.copy)}</p>
     </section>
   );
 }

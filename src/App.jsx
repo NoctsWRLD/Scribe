@@ -9,6 +9,7 @@ import PrivacyPage from './pages/PrivacyPage';
 import ImprintPage from './pages/ImprintPage';
 import AccessibilityPage from './pages/AccessibilityPage';
 import { SettingsProvider } from './contexts/SettingsContext';
+import { I18nProvider } from './i18n';
 
 /*
  * The signed-in app is a separate bundle. A visitor who only reads the
@@ -56,33 +57,35 @@ export default function App() {
   return (
     <BaseRouter>
       <AuthProvider>
-        <SettingsProvider>
-          <Suspense fallback={<PageFallback />}>
-            <Routes>
-              {/* Javne poti */}
-              <Route path="/" element={<Landing />} />
-              <Route path="/pravilnik-o-zasebnosti" element={<PrivacyPage />} />
-              <Route path="/impressum" element={<ImprintPage />} />
-              <Route path="/dostopnost" element={<AccessibilityPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
+        <I18nProvider>
+          <SettingsProvider>
+            <Suspense fallback={<PageFallback />}>
+              <Routes>
+                {/* Javne poti */}
+                <Route path="/" element={<Landing />} />
+                <Route path="/pravilnik-o-zasebnosti" element={<PrivacyPage />} />
+                <Route path="/impressum" element={<ImprintPage />} />
+                <Route path="/dostopnost" element={<AccessibilityPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
 
-              {/* Zaščitene poti */}
-              <Route path="/dashboard" element={<Protected><DashboardPage /></Protected>} />
-              <Route path="/subjects" element={<Protected><SubjectsPage /></Protected>} />
-              <Route path="/tasks" element={<Protected><TasksPage /></Protected>} />
-              <Route path="/schedule" element={<Protected><SchedulePage /></Protected>} />
-              <Route path="/exams" element={<Protected><ExamsPage /></Protected>} />
-              <Route path="/flashcards" element={<Protected><FlashcardsPage /></Protected>} />
-              <Route path="/chat" element={<Protected><ChatPage /></Protected>} />
-              <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
-              <Route path="/settings" element={<Protected><SettingsPage /></Protected>} />
-              <Route path="/friends" element={<Protected><FriendsPage /></Protected>} />
+                {/* Zaščitene poti */}
+                <Route path="/dashboard" element={<Protected><DashboardPage /></Protected>} />
+                <Route path="/subjects" element={<Protected><SubjectsPage /></Protected>} />
+                <Route path="/tasks" element={<Protected><TasksPage /></Protected>} />
+                <Route path="/schedule" element={<Protected><SchedulePage /></Protected>} />
+                <Route path="/exams" element={<Protected><ExamsPage /></Protected>} />
+                <Route path="/flashcards" element={<Protected><FlashcardsPage /></Protected>} />
+                <Route path="/chat" element={<Protected><ChatPage /></Protected>} />
+                <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
+                <Route path="/settings" element={<Protected><SettingsPage /></Protected>} />
+                <Route path="/friends" element={<Protected><FriendsPage /></Protected>} />
 
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
-        </SettingsProvider>
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
+          </SettingsProvider>
+        </I18nProvider>
       </AuthProvider>
     </BaseRouter>
   );

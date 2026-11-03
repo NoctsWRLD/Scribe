@@ -2,161 +2,79 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import SiteHeader from '../components/SiteHeader';
 import SiteFooter from '../components/SiteFooter';
+import LanguageSelect from '../components/LanguageSelect';
 import { SITE_DESCRIPTION, SITE_NAME, absoluteUrl } from '../config';
-import {
-  BookIcon,
-  CalendarIcon,
-  CardIcon,
-  ClockIcon,
-  ExamIcon,
-  TaskIcon,
-} from '../components/icons';
+import { addDaysToDateKey, formatDate, getSlovenianDateKey } from '../utils/dates';
+import { getWeekStart } from '../utils/rail';
+import { LOCALES } from '../i18n/locales';
+import { BookIcon, CalendarIcon, CardIcon, ClockIcon, ExamIcon, TaskIcon, UsersIcon } from '../components/icons';
+import { useI18n } from '../i18n';
 import { useSeo, useJsonLd } from '../hooks/useSeo';
 
-const CAPABILITIES = [
-  {
-    icon: BookIcon,
-    title: 'Vsak predmet s svojim prostorom',
-    copy: 'Naloge, preverjanja in kartice ostanejo razdeljeni po predmetih, zato na dan preveriš, kje zaostajaš.',
-  },
-  {
-    icon: TaskIcon,
-    title: 'Roki, ki jih vidiš naenkrat',
-    copy: 'Vsaka naloga ima predmet in rok. Filtriraš po stanju, predmetu ali roku, označiš opravljeno in nadaljuješ.',
-  },
-  {
-    icon: ExamIcon,
-    title: 'Odštevanje do testa',
-    copy: 'Vpišeš datum, Scribe odšteva dneve in pokaže, kdaj se sploh začne učiti.',
-  },
-  {
-    icon: CalendarIcon,
-    title: 'Teden, razporejen po dnevih',
-    copy: 'Tvoj urnik v obliki tedna. Fotografijo urnika lahko uvoziš in preveriš prebrane vrstice.',
-  },
-  {
-    icon: CardIcon,
-    title: 'Ponovi snov iz glave',
-    copy: 'Obrniš kartico in odgovori sam. Kar znaš, gre na stran, kar ne, ostane.',
-  },
-  {
-    icon: ClockIcon,
-    title: '25 minut brez odvajanja',
-    copy: 'Časovnik za osredotočeno učenje. Zapisuje, koliko minut se danes zareset naučil.',
-  },
+const FEATURES = [
+  { icon: TaskIcon, title: 'Naloge z roki', copy: 'Vsaka naloga ima predmet in rok. Označiš jih več hkrati in potrdiš z enim gumbom.' },
+  { icon: ExamIcon, title: 'Odštevanje do testa', copy: 'Vpišeš datum testa in vidiš, koliko dni ti ostane za učenje.' },
+  { icon: CalendarIcon, title: 'Teden na enem zaslonu', copy: 'Naloge po dnevih. Urnik lahko prebereš kar s fotografije.' },
+  { icon: CardIcon, title: 'Kartice za ponavljanje', copy: 'Vprašanje, odgovor na glas, preverba. Kar znaš, se umakne.' },
+  { icon: ClockIcon, title: 'Časovnik za fokus', copy: '25 minut za eno stvar. Vsaka končana seja se zapiše.' },
+  { icon: UsersIcon, title: 'Sošolci in klepet', copy: 'Dodaš jih s kodo in si pišete o predmetu ali zasebno.' },
 ];
 
 const STEPS = [
-  ['Ustvari predmete', 'Vpiši predmete, ki jih imaš v šoli. Vsak dobi svojo barvo, da ga prepoznaš tudi v množici.'],
-  ['Dodaj naloge z roki', 'Vsako nalogo pripišeš predmetu in ji določiš rok. Če roka nimaš, jo preprosto pustiš brez datuma.'],
-  ['Uči se in odštevaj', 'Domača stran pokaže, kaj je danes na vrsti, urnik pokaže, kdaj imaš pouk, odštevanje pa opozori, kdaj pride test.'],
-];
-
-const AUDIENCES = [
-  ['Osnovnošolci', 'Naloge, ki jih učitelj zapiše v delovni list, spraviš v en predmet in jih na koncu odkljukaš. Skupaj s sošolci.'],
-  ['Dijaki', 'Roki za matematiko, kemijo in jezike na enem mestu, plus kartice za ustni del.'],
-  ['Študenti', 'Predmeti, roki, izpiti in fokus v eni aplikaciji, ki jo odpreš tudi med vajo v knjižnici.'],
+  ['Ustvari račun', 'Potrebuješ samo e-pošto in geslo.'],
+  ['Dodaj predmete', 'Tiste, ki jih imaš letos. Vsak dobi svojo barvo.'],
+  ['Zapiši, kaj te čaka', 'Naloge, teste in kartice. Začetna stran pokaže, kaj je na vrsti danes.'],
 ];
 
 const FAQ = [
-  ['Kaj potrebujem, da začnem?', 'Račun z e-pošto in geslom. Predmete, naloge in kartice dodaš sam — nič ne vpisuješ v skupne sezname.'],
-  ['Kako se razlikujejo naloge, preverjanja in kartice?', 'Naloga ima rok in predmet. Preverjanje ima datum, od katerega se odšteva. Kartica ima vprašanje in odgovor ter zapise, ali si jo že znal.'],
-  ['Ali Scribe deluje brez interneta?', 'Ne. Podatki se shranijo v tvoj račun v oblaku, zato do njih dostopaš z vsake naprave, kjer si prijavljen.'],
-  ['Ali lahko uvozim urnik iz slike?', 'Da. Na strani Urnik naložiš fotografijo urnika, Scribe jo prebere in pokaže pregled vrstic, ki jih potrdiš ali popraviš.'],
-  ['Kaj se zgodi z mojimi podatki?', 'Ostanejo v tvojem računu. Scribe jih ne prodaja in ne deli z oglaševalci. Preberi pravilnik o zasebnosti.'],
-  ['Ali me Scribe opozarja na naloge?', 'Ne pošilja obvestil. Naloge vidiš na domačem pregledu in v urniku, kjer so razporejene po dnevih.'],
+  ['Ali je Scribe brezplačen?', 'Da. Brez oglasov, brez plačljivih funkcij.'],
+  ['Ali deluje za mojo šolo?', 'Da. Predmete in urnik vpišeš sam, zato Scribe deluje za osnovno, srednjo šolo ali fakulteto v kateri koli državi.'],
+  ['V katerih jezikih je?', 'V slovenščini, angleščini, nemščini, italijanščini in hrvaščini. Jezik zamenjaš kadar koli.'],
+  ['Ali deluje na telefonu?', 'Da. Odpreš ga v brskalniku na telefonu, tablici ali računalniku in podatki so povsod isti.'],
+  ['Kaj se zgodi z mojimi podatki?', 'Ostanejo v tvojem računu. Scribe jih ne prodaja in ne deli z oglaševalci. Kadar koli jih izvoziš ali izbrišeš.'],
 ];
 
-const HERO_RAIL = [
-  { day: 'Pon', value: 0.9, tone: 'accent' },
-  { day: 'Tor', value: 0.55, tone: 'accent' },
-  { day: 'Sre', value: 0.2, tone: 'warn' },
-  { day: 'Čet', value: 1, tone: 'accent' },
-  { day: 'Pet', value: 0.4, tone: 'accent' },
-  { day: 'Sob', value: 0, tone: 'empty' },
-  { day: 'Ned', value: 0, tone: 'empty' },
+/* An illustrative week: how much of each day is already claimed. */
+const SAMPLE_WEEK = [
+  ['accent', 0.9], ['accent', 0.55], ['warn', 1], ['accent', 0.35], ['accent', 0.7], ['empty', 0], ['empty', 0],
 ];
-
-function TodayPanel() {
-  return (
-    <div className="sheet w-full max-w-sm overflow-hidden">
-      <div className="flex items-baseline justify-between gap-3 border-b border-rp-line px-5 py-3.5">
-        <p className="text-small font-semibold text-rp-text">Danes</p>
-        <p className="mono text-small text-rp-muted">ponedeljek, 21. oktober</p>
-      </div>
-
-      <ul className="rail mx-5 mt-4" aria-label="Učni pas tedna">
-        {HERO_RAIL.map((segment) => (
-          <li key={segment.day} className="rail-seg" data-tone={segment.tone}>
-            <span aria-hidden="true" style={{ width: `${segment.value * 100}%` }} />
-          </li>
-        ))}
-      </ul>
-      <ul className="mx-5 mb-4 mt-2 flex gap-[3px]" aria-hidden="true">
-        {HERO_RAIL.map((segment) => (
-          <li key={segment.day} className="flex-1 text-center text-[11px] leading-4 text-rp-muted">
-            {segment.day}
-          </li>
-        ))}
-      </ul>
-
-      <div className="border-t border-rp-line px-5 py-4">
-        <ul>
-          {[
-            ['08:00', 'Matematika', 'Pouk'],
-            ['10:00', 'Fizika', 'Pouk'],
-            ['13:00', 'Dnevnik — esej', 'Naloga'],
-          ].map(([time, title, kind]) => (
-            <li key={time} className="flex items-baseline gap-3 border-b border-rp-line py-2 last:border-0">
-              <span className="mono w-12 shrink-0 text-small text-rp-muted">{time}</span>
-              <span className="truncate text-body font-medium text-rp-text">{title}</span>
-              <span className="ml-auto shrink-0 text-small text-rp-muted">{kind}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="flex items-center justify-between gap-3 border-t border-rp-line px-5 py-3">
-        <span className="text-small text-rp-muted">Preverjanje čez 4 dni</span>
-        <span className="mono chip chip-accent">25:00</span>
-      </div>
-    </div>
-  );
-}
 
 function FaqItem({ question, answer }) {
   const [open, setOpen] = useState(false);
+  const { t } = useI18n();
   return (
-    <div className="border-b border-rp-line last:border-0">
+    <li className="border-b border-rp-line">
       <h3>
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}
-          className="flex w-full items-center justify-between gap-4 py-4 text-left text-subtitle font-semibold text-rp-text transition-colors hover:text-rp-accent"
+          className="flex min-h-14 w-full items-center justify-between gap-4 py-3 text-left text-subtitle text-rp-text transition-colors hover:text-rp-accent"
         >
-          {question}
-          <span
-            className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border border-rp-line text-rp-muted transition-transform ${
-              open ? 'rotate-45' : ''
-            }`}
+          {t(question)}
+          <svg
+            className={`h-4 w-4 shrink-0 text-rp-muted transition-transform ${open ? 'rotate-180' : ''}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
             aria-hidden="true"
           >
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeWidth={2.5} d="M12 5v14M5 12h14" />
-            </svg>
-          </span>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 9l6 6 6-6" />
+          </svg>
         </button>
       </h3>
-      {open && <p className="pb-4 pr-10 text-body leading-6 text-rp-muted">{answer}</p>}
-    </div>
+      {open && <p className="max-w-2xl pb-4 text-body text-rp-muted">{t(answer)}</p>}
+    </li>
   );
 }
 
 export default function LandingPage() {
+  const { t, localeTag } = useI18n();
+  const weekStart = getWeekStart(getSlovenianDateKey());
+
   useSeo({
     title: 'Scribe',
-    description: 'Predmeti, naloge, preverjanja, urnik in kartice v enem pregledu. Za dijake in študente.',
+    description: t('Naloge, testi, urnik in kartice za učence in študente. Brezplačno, brez oglasov, v petih jezikih.'),
     path: '/',
   });
 
@@ -164,12 +82,7 @@ export default function LandingPage() {
     () => ({
       '@context': 'https://schema.org',
       '@graph': [
-        {
-          '@type': 'WebSite',
-          name: SITE_NAME,
-          url: absoluteUrl('/'),
-          inLanguage: 'sl-SI',
-        },
+        { '@type': 'WebSite', name: SITE_NAME, url: absoluteUrl('/'), inLanguage: localeTag },
         {
           '@type': 'SoftwareApplication',
           name: SITE_NAME,
@@ -177,74 +90,68 @@ export default function LandingPage() {
           operatingSystem: 'Web',
           description: SITE_DESCRIPTION,
           url: absoluteUrl('/'),
-          inLanguage: 'sl-SI',
+          inLanguage: LOCALES.map((locale) => locale.htmlLang),
+          offers: { '@type': 'Offer', price: '0' },
         },
       ],
     }),
-    [],
+    [localeTag],
   );
-
   useJsonLd(structuredData);
 
   return (
-    <div className="relative min-h-dvh bg-rp-canvas">
+    <div className="min-h-dvh bg-rp-canvas">
       <SiteHeader />
 
-      <main className="relative">
-        {/* Hero */}
-        <section className="mx-auto max-w-6xl px-4 pb-16 pt-14 md:px-6 md:pb-24 md:pt-20">
-          <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,.95fr)]">
-            <div>
-              <p className="text-label text-rp-accent">Šolski dnevnik</p>
-              <h1 className="mt-4 text-hero text-rp-text">
-                En dnevnik za celoten šolski dan.
-              </h1>
-              <p className="mt-5 max-w-lg text-body leading-7 text-rp-subtle">
-                Scribe združi predmete, naloge, preverjanja, urnik, kartice in sošolce.
-                Brez oglasov in brez nepotrebnih okrasitev — samo zapiski, roki in
-                odštevanje.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Link to="/register" className="btn btn-primary !px-6 !py-3">Ustvari račun</Link>
-                <Link to="/login" className="btn !px-6 !py-3">Prijava</Link>
-              </div>
-            </div>
-
-            <div className="flex justify-center lg:justify-end">
-              <TodayPanel />
-            </div>
+      <main>
+        {/* The hero is the rail: the product's one device, at full width. */}
+        <section className="mx-auto max-w-6xl px-4 pb-16 pt-12 md:px-6 md:pb-24 md:pt-20">
+          <h1 className="max-w-3xl text-display text-rp-text">
+            {t('Vsaka naloga in vsak test, preden te presenetita.')}
+          </h1>
+          <p className="mt-5 max-w-xl text-subtitle font-normal text-rp-subtle">
+            {t('Scribe je šolski dnevnik za učence in študente. Brezplačen, brez oglasov, za vsako šolo.')}
+          </p>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <Link to="/register" className="btn btn-primary btn-lg">{t('Ustvari račun')}</Link>
+            <Link to="/login" className="btn btn-lg">{t('Prijava')}</Link>
           </div>
+
+          <figure className="mt-16 md:mt-20">
+            <ul className="rail !h-4 md:!h-5" aria-hidden="true">
+              {SAMPLE_WEEK.map(([tone, value], index) => (
+                <li key={index} className="rail-seg" data-tone={tone}>
+                  <span style={{ width: `${value * 100}%` }} />
+                </li>
+              ))}
+            </ul>
+            <ul className="mt-2 flex gap-[3px]" aria-hidden="true">
+              {SAMPLE_WEEK.map((_, index) => (
+                <li key={index} className="flex-1 text-small text-rp-muted">
+                  <span className="sm:hidden">{formatDate(addDaysToDateKey(weekStart, index), { weekday: 'narrow' }, localeTag)}</span>
+                  <span className="hidden sm:inline">{formatDate(addDaysToDateKey(weekStart, index), { weekday: 'long' }, localeTag)}</span>
+                </li>
+              ))}
+            </ul>
+            <figcaption className="mt-4 max-w-md text-small text-rp-muted">
+              {t('Tvoj teden kot pas: bolj kot je dan poln nalog in testov, bolj je pas zapolnjen. Sreda je tukaj dan testa.')}
+            </figcaption>
+          </figure>
         </section>
 
-        {/* Možnosti */}
-        <section id="moznosti" className="border-t border-rp-line bg-rp-panel/40 py-16 md:py-24">
-          <div className="mx-auto max-w-6xl px-4 md:px-6">
-            <h2 className="max-w-2xl text-page text-rp-text">
-              Vse, kar imaš za šolo, na enem mestu
-            </h2>
-            <p className="mt-3 max-w-xl text-body leading-6 text-rp-muted">
-              Šest stvari, ki jih Scribe drži skupaj — in jih po potrebi pokaže tudi tebi
-              na telefonu.
-            </p>
-
-            <ul className="mt-10 divide-y divide-rp-line border-y border-rp-line">
-              {CAPABILITIES.map((item) => {
-                const Icon = item.icon;
+        <section id="moznosti" className="border-t border-rp-line py-16 md:py-24">
+          <div className="mx-auto grid max-w-6xl gap-10 px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+            <h2 className="text-page text-rp-text">{t('Kaj je v njem')}</h2>
+            <ul className="grid gap-x-10 sm:grid-cols-2">
+              {FEATURES.map((feature) => {
+                const Icon = feature.icon;
                 return (
-                  <li
-                    key={item.title}
-                    className="grid gap-3 py-6 sm:grid-cols-[3rem_minmax(0,1fr)_auto] sm:items-start sm:gap-6"
-                  >
-                    <span
-                      className="grid h-10 w-10 place-items-center rounded-md border border-rp-line bg-rp-raised text-rp-accent"
-                      aria-hidden="true"
-                    >
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <div>
-                      <h3 className="text-subtitle text-rp-text">{item.title}</h3>
-                      <p className="mt-2 max-w-xl text-body leading-6 text-rp-muted">{item.copy}</p>
-                    </div>
+                  <li key={feature.title} className="border-t border-rp-line py-5">
+                    <h3 className="flex items-center gap-2.5 text-subtitle text-rp-text">
+                      <Icon className="h-4 w-4 shrink-0 text-rp-accent" />
+                      {t(feature.title)}
+                    </h3>
+                    <p className="mt-1.5 text-body text-rp-muted">{t(feature.copy)}</p>
                   </li>
                 );
               })}
@@ -252,74 +159,55 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Kako deluje */}
-        <section id="kako-deluje" className="py-16 md:py-24">
-          <div className="mx-auto max-w-6xl px-4 md:px-6">
-            <div className="grid gap-10 lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)]">
-              <div>
-                <h2 className="text-page text-rp-text">Tri koraki, potem vsak dan isto.</h2>
-                <p className="mt-3 max-w-sm text-body leading-6 text-rp-muted">
-                  Ustvarjanje traja minuto. Uporaba traja tako dolgo, dokler ne odpraviš vsega.
-                </p>
-              </div>
+        <section id="kako-deluje" className="border-t border-rp-line py-16 md:py-24">
+          <div className="mx-auto grid max-w-6xl gap-10 px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+            <h2 className="text-page text-rp-text">{t('Kako začneš')}</h2>
+            <ol className="grid gap-x-10 sm:grid-cols-3">
+              {STEPS.map(([title, copy], index) => (
+                <li key={title} className="border-t-2 border-rp-mark pt-4">
+                  <p className="tnum text-small font-semibold text-rp-accent">{index + 1}</p>
+                  <h3 className="mt-1 text-subtitle text-rp-text">{t(title)}</h3>
+                  <p className="mt-1.5 text-body text-rp-muted">{t(copy)}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
 
-              <ol className="ledger sheet">
-                {STEPS.map(([title, copy], index) => (
-                  <li key={title} className="ledger-row flex gap-4 px-5 py-4">
-                    <span className="mono shrink-0 text-body font-bold text-rp-accent" aria-hidden="true">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                    <span>
-                      <span className="block text-subtitle text-rp-text">{title}</span>
-                      <span className="mt-1 block text-body leading-6 text-rp-muted">{copy}</span>
-                    </span>
-                  </li>
+        <section id="jeziki" className="border-t border-rp-line py-16 md:py-24">
+          <div className="mx-auto grid max-w-6xl gap-10 px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+            <h2 className="text-page text-rp-text">{t('Pet jezikov')}</h2>
+            <div>
+              <ul className="flex flex-wrap gap-x-6 gap-y-2 text-title text-rp-text" lang="">
+                {LOCALES.map((locale) => (
+                  <li key={locale.id} lang={locale.htmlLang}>{locale.label}</li>
                 ))}
-              </ol>
+              </ul>
+              <p className="mt-4 max-w-lg text-body text-rp-muted">
+                {t('Vsak sošolec lahko uporablja svoj jezik. Klepet in naloge delujejo enako.')}
+              </p>
+              <div className="mt-5">
+                <LanguageSelect />
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Za koga */}
-        <section className="border-t border-rp-line bg-rp-panel/40 py-16 md:py-24">
-          <div className="mx-auto max-w-6xl px-4 md:px-6">
-            <h2 className="text-page text-rp-text">Narejeno za šolo, ne za odrasle.</h2>
-            <ul className="mt-10 grid gap-8 sm:grid-cols-3">
-              {AUDIENCES.map(([group, copy]) => (
-                <li key={group}>
-                  <span className="block h-px w-10 bg-rp-accent" aria-hidden="true" />
-                  <h3 className="mt-4 text-subtitle text-rp-text">{group}</h3>
-                  <p className="mt-2 text-body leading-6 text-rp-muted">{copy}</p>
-                </li>
+        <section id="vprasanja" className="border-t border-rp-line py-16 md:py-24">
+          <div className="mx-auto grid max-w-6xl gap-10 px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+            <h2 className="text-page text-rp-text">{t('Vprašanja')}</h2>
+            <ul className="border-t border-rp-line">
+              {FAQ.map(([question, answer]) => (
+                <FaqItem key={question} question={question} answer={answer} />
               ))}
             </ul>
           </div>
         </section>
 
-        {/* Vprašanja */}
-        <section id="vprasanja" className="py-16 md:py-24">
-          <div className="mx-auto max-w-3xl px-4 md:px-6">
-            <h2 className="text-page text-rp-text">Vprašanja</h2>
-            <div className="mt-8">
-              {FAQ.map(([question, answer]) => (
-                <FaqItem key={question} question={question} answer={answer} />
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Zaključni poziv */}
-        <section className="border-t border-rp-line bg-rp-panel/40 py-16 md:py-20">
-          <div className="mx-auto max-w-3xl px-4 text-center md:px-6">
-            <h2 className="text-page text-rp-text">Odpri predmete in dodaj prvo nalogo.</h2>
-            <p className="mt-3 text-body text-rp-muted">
-              Račun ustvariš v enem koraku, nato dodaš prvega predmeta in prvo nalogo.
-              Svojega sošolca poiščeš po kodi, ki jo dobiš od njega.
-            </p>
-            <div className="mt-7 flex flex-wrap justify-center gap-3">
-              <Link to="/register" className="btn btn-primary !px-6 !py-3">Ustvari račun</Link>
-              <Link to="/login" className="btn !px-6 !py-3">Že imaš račun? Prijava</Link>
-            </div>
+        <section className="border-t border-rp-line py-16 md:py-20">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-6 px-4 md:px-6">
+            <h2 className="max-w-xl text-page text-rp-text">{t('Zapiši prvi rok še danes.')}</h2>
+            <Link to="/register" className="btn btn-primary btn-lg">{t('Ustvari račun')}</Link>
           </div>
         </section>
       </main>

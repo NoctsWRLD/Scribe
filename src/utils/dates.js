@@ -17,9 +17,14 @@ function slovenianParts(date) {
 }
 
 export function formatSlovenianDate(dateKey, options = { day: 'numeric', month: 'short' }) {
+  return formatDate(dateKey, options, 'sl-SI');
+}
+
+/** The same formatting, asked in the reader's language. */
+export function formatDate(dateKey, options = { day: 'numeric', month: 'short' }, tag = 'sl-SI') {
   const [year, month, day] = dateKey.split('-').map(Number);
   const dateAtNoonUtc = new Date(Date.UTC(year, month - 1, day, 12));
-  return new Intl.DateTimeFormat('sl-SI', { ...options, timeZone: SLOVENIA_TIME_ZONE }).format(dateAtNoonUtc);
+  return new Intl.DateTimeFormat(tag, { ...options, timeZone: SLOVENIA_TIME_ZONE }).format(dateAtNoonUtc);
 }
 
 export function addDaysToDateKey(dateKey, amount) {

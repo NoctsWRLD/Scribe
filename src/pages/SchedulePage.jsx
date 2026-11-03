@@ -2,59 +2,52 @@ import { useMemo, useState } from 'react';
 import { useSubjects, useTasks } from '../hooks/useFirestore';
 import TaskModal from '../components/TaskModal';
 import ScheduleImportModal from '../components/ScheduleImportModal';
-import EmptyState from '../components/EmptyState';
 import { getSubjectColor } from '../utils/colors';
 import { ChevronLeftIcon, ChevronRightIcon, ImageIcon, PlusIcon } from '../components/icons';
 import { getWeekStart } from '../utils/rail';
-import {
-  addDaysToDateKey,
-  formatSlovenianDate,
-  getDayOfMonth,
-  getSlovenianDateKey,
-  getYearFromDateKey,
-} from '../utils/dates';
+import { addDaysToDateKey, formatDate, getSlovenianDateKey } from '../utils/dates';
+import { useI18n } from '../i18n';
 
-const DAYS_SHORT = ['Pon', 'Tor', 'Sre', 'Čet', 'Pet', 'Sob', 'Ned'];
-const DAYS_FULL = [
-  'Ponedeljek',
-  'Torek',
-  'Sreda',
-  'Četrtek',
-  'Petek',
-  'Sobota',
-  'Nedelja',
-];
-
+/**
+ * The week. On a wide screen it is seven columns; on a phone the same week
+ * is one list, day under day, because seven columns on 360px are unreadable.
+ * A task opens its form; ticking it off happens in Naloge.
+ */
 export default function SchedulePage() {
+  const { t, tn, localeTag } = useI18n();
   const { subjects } = useSubjects();
-  const { tasks, addTask, addTasks, updateTask, toggleTask } = useTasks();
+  const { tasks, addTask, addTasks, updateTask } = useTasks();
   const [weekOffset, setWeekOffset] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editTask, setEditTask] = useState(null);
   const [preselectedDate, setPreselectedDate] = useState('');
 
-  const weekStart = useMemo(
-    () => addDaysToDateKey(getWeekStart(getSlovenianDateKey()), weekOffset * 7),
-    [weekOffset],
-  );
-  const weekDays = useMemo(
-    () => Array.from({ length: 7 }, (_, index) => addDaysToDateKey(weekStart, index)),
-    [weekStart],
-  );
   const todayStr = getSlovenianDateKey();
+  const weekStart = useMemo(() => addDaysToDateKey(getWeekStart(todayStr), weekOffset * 7), [todayStr, weekOffset]);
+  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => addDaysToDateKey(weekStart, index)), [weekStart]);
 
-  function getSubject(task) {
-    return subjects.find((subject) => subject.id === task.subjectId) || null;
-  }
+  const byDay = useMemo(() => {
+    const map = new Map(weekDays.map((day) => [day, []]));
+    for (const task of tasks) {
+      if (!task.completed && map.has(task.dueDate)) map.get(task.dueDate).push(task);
+    }
+    return map;
+  }, [tasks, weekDays]);
+  const weekTotal = weekDays.reduce((sum, day) => sum + byDay.get(day).length, 0);
+  const taskForms = { one: t('odprta naloga'), two: t('odprti nalogi'), few: t('odprte naloge'), other: t('odprtih nalog') };
 
-  function getTasksForDay(dateStr) {
-    return tasks.filter((task) => task.dueDate === dateStr && !task.completed);
-  }
+  const subjectOf = (task) => subjects.find((subject) => subject.id === task.subjectId) || null;
 
-  function handleDayClick(dateStr) {
-    setPreselectedDate(dateStr);
+  function addOn(day) {
     setEditTask(null);
+    setPreselectedDate(day);
+    setModalOpen(true);
+  }
+
+  function edit(task) {
+    setEditTask(task);
+    setPreselectedDate('');
     setModalOpen(true);
   }
 
@@ -66,201 +59,130 @@ export default function SchedulePage() {
     setPreselectedDate('');
   }
 
-  function handleEdit(task) {
-    setEditTask(task);
-    setPreselectedDate('');
-    setModalOpen(true);
-  }
+  const weekLabel = `${formatDate(weekDays[0], { day: 'numeric', month: 'short' }, localeTag)} – ${formatDate(weekDays[6], { day: 'numeric', month: 'short', year: 'numeric' }, localeTag)}`;
 
-  async function handleImport(rows) {
-    await addTasks(rows);
+  function TaskLine({ task, compact }) {
+    const subject = subjectOf(task);
+    const color = subject ? getSubjectColor(subject.colorIndex) : null;
+    return (
+      <button
+        type="button"
+        onClick={(event) => { event.stopPropagation(); edit(task); }}
+        className={`block w-full border-l-2 text-left transition-colors hover:bg-rp-overlay ${compact ? 'py-1 pl-2 pr-1' : 'py-2.5 pl-3 pr-2'}`}
+        style={{ borderLeftColor: color?.colorVar || 'var(--rp-line-strong)' }}
+      >
+        <span className={`block truncate font-semibold text-rp-text ${compact ? 'text-[12px] leading-tight' : 'text-body'}`}>{task.title}</span>
+        {subject && <span className={`block truncate text-rp-muted ${compact ? 'text-[11px]' : 'text-small'}`}>{subject.name}</span>}
+      </button>
+    );
   }
-
-  const weekLabel = `${formatSlovenianDate(weekDays[0], { day: 'numeric', month: 'short' })} – ${formatSlovenianDate(weekDays[6], { day: 'numeric', month: 'short' })} ${getYearFromDateKey(weekDays[6])}`;
-  const weekTotal = weekDays.reduce((sum, day) => sum + getTasksForDay(day).length, 0);
 
   return (
     <div className="space-y-6">
-      <section className="rise margin-rule flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-page text-rp-text">Urnik</h1>
-          <p className="mt-1 text-small text-rp-muted">{weekLabel}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => setWeekOffset(0)} className="btn !py-2 !text-small">
-            Ta teden
-          </button>
-          <button
-            type="button"
-            onClick={() => setWeekOffset((value) => value - 1)}
-            aria-label="Prejšnji teden"
-            className="grid h-9 w-9 place-items-center rounded-md text-rp-subtle transition-colors hover:bg-rp-overlay hover:text-rp-text"
-          >
-            <ChevronLeftIcon className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setWeekOffset((value) => value + 1)}
-            aria-label="Naslednji teden"
-            className="grid h-9 w-9 place-items-center rounded-md text-rp-subtle transition-colors hover:bg-rp-overlay hover:text-rp-text"
-          >
-            <ChevronRightIcon className="h-4 w-4" />
-          </button>
-          <button type="button" onClick={() => setImportOpen(true)} className="btn !py-2 !text-small">
-            <ImageIcon className="h-4 w-4" />
-            Urnik iz slike
-          </button>
-          <button
-            id="schedule-add-task"
-            type="button"
-            onClick={() => { setEditTask(null); setPreselectedDate(todayStr); setModalOpen(true); }}
-            className="btn btn-primary !py-2 !text-small"
-          >
-            <PlusIcon className="h-4 w-4" />
-            Nova naloga
-          </button>
-        </div>
-      </section>
-
-      <section className="rise" aria-label="Teden">
-        <div className="sheet overflow-hidden">
-          <div className="grid grid-cols-7 divide-x divide-rp-line">
-            {weekDays.map((day, index) => {
-              const dayTasks = getTasksForDay(day);
-              const isToday = day === todayStr;
-
-              return (
-                <div key={day} className="flex min-w-0 flex-col">
-                  <div className={`mb-2 border-b pb-2 text-center ${isToday ? 'border-rp-accent/45' : 'border-rp-line'}`}>
-                    <p className={`text-[11px] font-semibold ${isToday ? 'text-rp-accent' : 'text-rp-muted'}`}>
-                      {DAYS_SHORT[index]}
-                    </p>
-                    <div
-                      className={`mx-auto mt-1 grid h-7 w-7 place-items-center rounded-full text-small font-bold transition-colors ${
-                        isToday ? 'bg-rp-accent text-rp-accent-ink' : 'text-rp-subtle'
-                      }`}
-                    >
-                      {getDayOfMonth(day)}
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleDayClick(day)}
-                    title={`Dodaj nalogo – ${DAYS_FULL[index]}`}
-                    aria-label={`Dodaj nalogo – ${DAYS_FULL[index]}, ${formatSlovenianDate(day, { day: 'numeric', month: 'long' })}`}
-                    className="flex min-h-32 flex-1 flex-col gap-1.5 p-1.5 text-left transition-colors hover:bg-rp-overlay"
-                  >
-                    {dayTasks.map((task) => {
-                      const subject = getSubject(task);
-                      const color = subject ? getSubjectColor(subject.colorIndex) : null;
-                      return (
-                        <span
-                          key={task.id}
-                          onClick={(event) => { event.stopPropagation(); handleEdit(task); }}
-                          role="button"
-                          tabIndex={0}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault();
-                              handleEdit(task);
-                            }
-                          }}
-                          className={`block w-full cursor-pointer rounded-xs border px-2 py-1.5 text-left text-[11px] leading-tight transition-opacity hover:opacity-80 ${
-                            color ? `${color.bg} ${color.border} ${color.text}` : 'bg-rp-accent/12 border-rp-accent/30 text-rp-accent'
-                          }`}
-                        >
-                          <span className="block truncate font-semibold">{task.title}</span>
-                          {subject && <span className="mt-0.5 block truncate opacity-75">{subject.name}</span>}
-                        </span>
-                      );
-                    })}
-                  </button>
-                </div>
-              );
-            })}
+      <section className="rise margin-rule">
+        <h1 className="text-page text-rp-text">{t('Urnik')}</h1>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setWeekOffset((value) => value - 1)}
+              aria-label={t('Prejšnji teden')}
+              className="btn btn-icon border-transparent bg-transparent"
+            >
+              <ChevronLeftIcon className="h-4 w-4" />
+            </button>
+            <p className="mono min-w-0 px-1 text-small text-rp-text" aria-live="polite">{weekLabel}</p>
+            <button
+              type="button"
+              onClick={() => setWeekOffset((value) => value + 1)}
+              aria-label={t('Naslednji teden')}
+              className="btn btn-icon border-transparent bg-transparent"
+            >
+              <ChevronRightIcon className="h-4 w-4" />
+            </button>
+            {weekOffset !== 0 && (
+              <button type="button" onClick={() => setWeekOffset(0)} className="link-signal ml-1">{t('Ta teden')}</button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setImportOpen(true)} className="btn">
+              <ImageIcon className="h-4 w-4" />
+              {t('Urnik iz slike')}
+            </button>
+            <button type="button" onClick={() => addOn(todayStr)} className="btn btn-primary">
+              <PlusIcon className="h-4 w-4" />
+              {t('Nova naloga')}
+            </button>
           </div>
         </div>
         <p className="mt-3 text-small text-rp-muted">
-          {weekTotal === 0
-            ? 'Ta teden je prazen. Klikni dan, da dodaš prvo nalogo.'
-            : `V tem tednu je ${weekTotal} odprtih nalog.`}
+          {weekTotal === 0 ? t('Ta teden ni odprtih nalog.') : tn(weekTotal, taskForms)}
         </p>
       </section>
 
-      <section className="lg:hidden" aria-label="Ta teden po dnevih">
-        <h2 className="text-title text-rp-text">Ta teden po dnevih</h2>
-        <div className="mt-3 grid gap-4">
-          {weekDays.map((day, index) => {
-            const dayTasks = getTasksForDay(day);
+      {/* Wide screens: seven columns. */}
+      <section className="hidden border-y border-rp-line lg:block" aria-label={t('Teden')}>
+        <div className="grid grid-cols-7 divide-x divide-rp-line">
+          {weekDays.map((day) => {
             const isToday = day === todayStr;
-            if (dayTasks.length === 0 && !isToday) return null;
-
             return (
-              <div key={day}>
-                <div className="mb-2 flex items-center gap-2">
-                  <span className={`text-body font-semibold ${isToday ? 'text-rp-accent' : 'text-rp-subtle'}`}>
-                    {DAYS_FULL[index]}, {formatSlovenianDate(day, { day: 'numeric', month: 'long' })}
-                  </span>
-                  {isToday && <span className="chip chip-accent">Danes</span>}
+              <div key={day} className="flex min-w-0 flex-col">
+                <div className={`border-b px-2 py-2 ${isToday ? 'border-rp-accent' : 'border-rp-line'}`}>
+                  <p className={`text-[11px] font-semibold ${isToday ? 'text-rp-accent' : 'text-rp-muted'}`}>
+                    {formatDate(day, { weekday: 'short' }, localeTag)}
+                  </p>
+                  <p className={`tnum text-subtitle ${isToday ? 'text-rp-accent' : 'text-rp-text'}`}>
+                    {formatDate(day, { day: 'numeric' }, localeTag)}
+                  </p>
                 </div>
-                {dayTasks.length === 0 ? (
-                  <p className="pl-2 text-small text-rp-muted">Ni nalog</p>
-                ) : (
-                  <div className="grid gap-2">
-                    {dayTasks.map((task) => {
-                      const subject = getSubject(task);
-                      return (
-                        <div key={task.id} className="row-item flex items-start gap-3 px-4 py-3">
-                          <button
-                            type="button"
-                            onClick={() => toggleTask(task)}
-                            aria-label={task.completed ? 'Označi kot neopravljeno' : 'Označi kot opravljeno'}
-                            className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 transition-colors ${
-                              task.completed ? 'border-rp-accent bg-rp-accent text-rp-accent-ink' : 'border-rp-line-strong'
-                            }`}
-                          >
-                            {task.completed && (
-                              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleEdit(task)}
-                            className="min-w-0 flex-1 text-left"
-                          >
-                            <p className={`text-body font-medium ${task.completed ? 'text-rp-muted line-through' : 'text-rp-text'}`}>
-                              {task.title}
-                            </p>
-                            {subject && (
-                              <p className="mt-1 flex items-center gap-1.5 text-small text-rp-muted">
-                                <span
-                                  className="h-1.5 w-1.5 rounded-full"
-                                  style={{ backgroundColor: getSubjectColor(subject.colorIndex).colorVar }}
-                                  aria-hidden="true"
-                                />
-                                {subject.name}
-                              </p>
-                            )}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                <div className="flex min-h-40 flex-1 flex-col gap-1 p-1">
+                  {byDay.get(day).map((task) => <TaskLine key={task.id} task={task} compact />)}
+                  <button
+                    type="button"
+                    onClick={() => addOn(day)}
+                    aria-label={t('Dodaj nalogo za {day}', { day: formatDate(day, { weekday: 'long', day: 'numeric', month: 'long' }, localeTag) })}
+                    className="mt-auto grid min-h-8 place-items-center text-rp-muted opacity-0 transition-opacity hover:bg-rp-overlay hover:text-rp-text focus-visible:opacity-100 [div:hover>&]:opacity-100"
+                  >
+                    <PlusIcon className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             );
           })}
-          {weekTotal === 0 && (
-            <EmptyState
-              compact
-              title="Ta teden je prazen"
-              description="Klikni dan v mreži ali dodaj nalogo z gumbom zgoraj."
-            />
-          )}
         </div>
+      </section>
+
+      {/* Phones and tablets: one list. */}
+      <section className="lg:hidden" aria-label={t('Teden')}>
+        <ol className="ledger">
+          {weekDays.map((day) => {
+            const isToday = day === todayStr;
+            const dayTasks = byDay.get(day);
+            return (
+              <li key={day} className="ledger-row py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className={`text-body font-semibold ${isToday ? 'text-rp-accent' : 'text-rp-subtle'}`}>
+                    {formatDate(day, { weekday: 'long', day: 'numeric', month: 'long' }, localeTag)}
+                    {isToday && <span className="sr-only"> ({t('danes')})</span>}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => addOn(day)}
+                    aria-label={t('Dodaj nalogo za {day}', { day: formatDate(day, { weekday: 'long', day: 'numeric', month: 'long' }, localeTag) })}
+                    className="btn btn-icon border-transparent bg-transparent text-rp-muted"
+                  >
+                    <PlusIcon className="h-4 w-4" />
+                  </button>
+                </div>
+                {dayTasks.length > 0 && (
+                  <div className="mb-1 grid gap-1">
+                    {dayTasks.map((task) => <TaskLine key={task.id} task={task} />)}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ol>
       </section>
 
       <ScheduleImportModal
@@ -268,7 +190,7 @@ export default function SchedulePage() {
         isOpen={importOpen}
         onClose={() => setImportOpen(false)}
         subjects={subjects}
-        onImport={handleImport}
+        onImport={(rows) => addTasks(rows)}
       />
 
       <TaskModal
@@ -276,7 +198,9 @@ export default function SchedulePage() {
         onClose={() => { setModalOpen(false); setEditTask(null); setPreselectedDate(''); }}
         onSave={handleSave}
         subjects={subjects}
-        task={editTask ? { ...editTask } : preselectedDate ? { dueDate: preselectedDate } : null}
+        task={editTask}
+        defaultDueDate={preselectedDate}
+        defaultSubjectId={subjects[0]?.id || ''}
       />
     </div>
   );

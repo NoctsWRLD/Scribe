@@ -45,3 +45,22 @@ export function summarizeTasks(tasks, today, threeDaysFromNow) {
     completion: tasks.length ? Math.round((completed.length / tasks.length) * 100) : 0,
   };
 }
+
+/**
+ * What the "done" button does for the current selection.
+ *
+ * Ticking a box only selects; nothing is written until the student presses
+ * the button. If anything selected is still open, the button closes the open
+ * ones. Only a selection made entirely of finished tasks offers to reopen
+ * them. Ids that are no longer in the visible list (a filter changed) are
+ * ignored, so the button can never act on a row the student cannot see.
+ */
+export function planSelection(visibleTasks, selectedIds) {
+  const chosen = new Set(selectedIds);
+  const tasks = visibleTasks.filter((task) => chosen.has(task.id));
+  const open = tasks.filter((task) => !task.completed).map((task) => task.id);
+  const done = tasks.filter((task) => task.completed).map((task) => task.id);
+  if (open.length) return { action: 'complete', ids: open, all: tasks.map((task) => task.id) };
+  if (done.length) return { action: 'reopen', ids: done, all: done };
+  return { action: 'none', ids: [], all: [] };
+}

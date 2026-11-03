@@ -85,6 +85,9 @@
   --color-rp-accent: var(--rp-accent);
   --color-rp-accent-hover: var(--rp-accent-hover);
   --color-rp-accent-ink: var(--rp-accent-ink);
+  --color-rp-mark: var(--rp-mark);
+  --color-rp-mark-hover: var(--rp-mark-hover);
+  --color-rp-mark-ink: var(--rp-mark-ink);
 
   /* status */
   --color-rp-warn: var(--rp-warn);
@@ -148,14 +151,14 @@
   --text-label--letter-spacing: 0.01em;
   --text-label--font-weight: 600;
 
-  /* radius scale — one value: 2px. The paper has corners, not pills. */
-  --radius: 2px;
-  --radius-xs: 2px;
-  --radius-sm: 2px;
-  --radius-md: 2px;
-  --radius-lg: 2px;
-  --radius-xl: 2px;
-  --radius-2xl: 2px;
+  /* radius scale — a family, not a pill. Sheets 8px, controls 6px. */
+  --radius: 8px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 14px;
 
   /* spacing rhythm — 4px base, every vertical interval is a step of it */
   --spacing-1: 0.25rem;
@@ -177,50 +180,60 @@
 
 /* --------------------------------------------------------------------------
    Layer 1 — light theme "Dan"
+
+   Pale sage paper, charcoal ink, muted mauve pen. The four swatches are
+   used as roles: sage is the desk, charcoal is the writing, slate is the
+   secondary structure, mauve is the one action colour.
    -------------------------------------------------------------------------- */
 :root {
   color-scheme: light;
 
-  --rp-canvas: #f4f5f8;
-  --rp-panel: #ffffff;
-  --rp-raised: #ffffff;
-  --rp-overlay: #eef0f6;
-  --rp-sunken: #f7f8fb;
+  --rp-canvas: #d6dbda;
+  --rp-panel: #e5e9e8;
+  --rp-raised: #f2f4f3;
+  --rp-overlay: #c9cfce;
+  --rp-sunken: #cdd3d2;
 
-  --rp-text: #0e1226;
-  --rp-subtle: #414a6b;
-  --rp-muted: #5c6485;
+  --rp-text: #3a3843;
+  --rp-subtle: #44454e;
+  --rp-muted: #4c4d56;
 
-  --rp-line: #dfe3ee;
-  --rp-line-strong: #c3c9dc;
-  --rp-fill: #eceef5;
-  --rp-rule: #4f46e5;
+  --rp-line: #bcc3c2;
+  --rp-line-strong: #9aa2a1;
+  --rp-fill: #cbd1d0;
+  --rp-rule: #725c5c;
 
-  --rp-accent: #4f46e5;
-  --rp-accent-hover: #3f38c9;
-  --rp-accent-ink: #ffffff;
+  --rp-accent: #5e4a4a;
+  --rp-accent-hover: #4b3a3a;
+  --rp-accent-ink: #f2f4f3;
 
-  --rp-warn: #8f5806;
-  --rp-warn-fill: #dd9a4e;
-  --rp-danger: #b03149;
-  --rp-success: #0a6b54;
-  --rp-info: #1d4ed8;
+  /* The mauve swatch itself. Primary buttons, your own chat messages and
+     selected rows. It is a fill, never text — see --rp-accent for that. */
+  --rp-mark: #725c5c;
+  --rp-mark-hover: #644f4f;
+  --rp-mark-ink: #ffffff;
 
-  --rp-subject-1: #6d28d9;
-  --rp-subject-2: #a21c72;
-  --rp-subject-3: #b03149;
-  --rp-subject-4: #8f5806;
-  --rp-subject-5: #0a6b54;
-  --rp-subject-6: #1668a8;
-  --rp-subject-7: #4338ca;
-  --rp-subject-8: #3f6212;
-  --rp-subject-9: #9a3412;
-  --rp-subject-10: #475569;
+  --rp-warn: #7a5210;
+  --rp-warn-fill: #c98a2e;
+  --rp-danger: #a32b3d;
+  --rp-success: #14614b;
+  --rp-info: #1e4e79;
+
+  --rp-subject-1: #6a3d9a;
+  --rp-subject-2: #9a2f5e;
+  --rp-subject-3: #a3323a;
+  --rp-subject-4: #7a5a12;
+  --rp-subject-5: #14614b;
+  --rp-subject-6: #16617f;
+  --rp-subject-7: #40548c;
+  --rp-subject-8: #4f6212;
+  --rp-subject-9: #8a4419;
+  --rp-subject-10: #4c5560;
 
   /* elevation is nearly flat: the ruled paper is separated by lines, not shadow */
-  --rp-shadow-1: 0 0 0 1px rgb(14 18 38 / 0.04);
-  --rp-shadow-2: 0 8px 24px -18px rgb(14 18 38 / 0.35);
-  --rp-shadow-3: 0 24px 56px -28px rgb(14 18 38 / 0.4);
+  --rp-shadow-1: 0 0 0 1px rgb(34 37 43 / 0.05);
+  --rp-shadow-2: 0 10px 26px -20px rgb(34 37 43 / 0.35);
+  --rp-shadow-3: 0 26px 58px -30px rgb(34 37 43 / 0.42);
 
   --rp-duration-fast: 120ms;
   --rp-duration-base: 200ms;
@@ -231,69 +244,76 @@
 
 /* --------------------------------------------------------------------------
    Layer 1 — dark theme "Noč" (the default the app boots into)
+
+   The same book under a lamp. The accent is the mauve lightened until it
+   clears 4.5:1 on charcoal; the deep mauve would not.
    -------------------------------------------------------------------------- */
 :root[data-theme='noc'] {
   color-scheme: dark;
 
-  --rp-canvas: #0b1020;
-  --rp-panel: #121a33;
-  --rp-raised: #182140;
-  --rp-overlay: #20294c;
-  --rp-sunken: #0d1428;
+  --rp-canvas: #3a3843;
+  --rp-panel: #3f3e49;
+  --rp-raised: #44454e;
+  --rp-overlay: #4d4f58;
+  --rp-sunken: #33323c;
 
-  --rp-text: #f1f4ff;
-  --rp-subtle: #bcc5e8;
-  --rp-muted: #8e98c2;
+  --rp-text: #f1f3f2;
+  --rp-subtle: #d6dbda;
+  --rp-muted: #c3c8c7;
 
-  --rp-line: rgb(146 156 200 / 0.2);
-  --rp-line-strong: rgb(146 156 200 / 0.38);
-  --rp-fill: #151c38;
-  --rp-rule: #9b8cff;
+  --rp-line: rgb(214 219 218 / 0.14);
+  --rp-line-strong: rgb(214 219 218 / 0.3);
+  --rp-fill: #403f4a;
+  --rp-rule: #b8948f;
 
-  --rp-accent: #9b8cff;
-  --rp-accent-hover: #b0a4ff;
-  --rp-accent-ink: #0b1020;
+  --rp-accent: #dcb8b2;
+  --rp-accent-hover: #e8c9c4;
+  --rp-accent-ink: #2e2d35;
 
-  --rp-warn: #e8a44c;
-  --rp-warn-fill: #e8a44c;
-  --rp-danger: #f2778a;
-  --rp-success: #46d39a;
-  --rp-info: #6fa8ff;
+  --rp-mark: #725c5c;
+  --rp-mark-hover: #806868;
+  --rp-mark-ink: #f1f3f2;
 
-  --rp-subject-1: #a692ff;
-  --rp-subject-2: #f58cc0;
-  --rp-subject-3: #ff8fa0;
-  --rp-subject-4: #f5c86b;
-  --rp-subject-5: #5adcb4;
-  --rp-subject-6: #5cd2f2;
-  --rp-subject-7: #8fa5ff;
-  --rp-subject-8: #c3de72;
-  --rp-subject-9: #ffa26b;
-  --rp-subject-10: #a9b6ce;
+  --rp-warn: #edbe7a;
+  --rp-warn-fill: #edbe7a;
+  --rp-danger: #f498a2;
+  --rp-success: #74d6b0;
+  --rp-info: #93c4ee;
+
+  --rp-subject-1: #c3a6e8;
+  --rp-subject-2: #f0a3be;
+  --rp-subject-3: #f2a0a4;
+  --rp-subject-4: #e9c77a;
+  --rp-subject-5: #7fd9b9;
+  --rp-subject-6: #8fcbe8;
+  --rp-subject-7: #a9b6ec;
+  --rp-subject-8: #cbdd8c;
+  --rp-subject-9: #f0ae86;
+  --rp-subject-10: #b7c0ce;
 
   --rp-shadow-1: 0 0 0 1px rgb(255 255 255 / 0.03);
-  --rp-shadow-2: 0 10px 26px -20px rgb(0 0 0 / 0.9);
-  --rp-shadow-3: 0 28px 64px -30px rgb(0 0 0 / 0.85);
+  --rp-shadow-2: 0 12px 28px -20px rgb(0 0 0 / 0.9);
+  --rp-shadow-3: 0 30px 66px -32px rgb(0 0 0 / 0.88);
 }
 
 /* High contrast: stronger lines, brighter secondary text. Same tokens.
    The text tiers are theme-scoped — a dark value would fail on the light
    canvas, and a light value would vanish on the dark one. */
 :root[data-contrast='high'] {
-  --rp-line: rgb(71 84 119 / 0.38);
-  --rp-line-strong: rgb(45 55 85 / 0.6);
+  --rp-line: rgb(74 82 90 / 0.4);
+  --rp-line-strong: rgb(53 60 68 / 0.62);
 }
 
 :root[data-theme='noc'][data-contrast='high'] {
-  --rp-line: rgb(168 176 220 / 0.55);
-  --rp-line-strong: rgb(190 198 235 / 0.8);
-  --rp-subtle: #e4e8fb;
-  --rp-muted: #b3bbdd;
+  --rp-line: rgb(226 232 228 / 0.5);
+  --rp-line-strong: rgb(232 238 234 / 0.78);
+  --rp-subtle: #e8ece6;
+  --rp-muted: #ccd2cc;
 }
 
 :root[data-theme='dnevnik'][data-contrast='high'] {
-  --rp-subtle: #2a3357;
-  --rp-muted: #474f70;
+  --rp-subtle: #2c3037;
+  --rp-muted: #43474f;
 }
 
 /* --------------------------------------------------------------------------
@@ -401,26 +421,23 @@ button:disabled {
 /* --------------------------------------------------------------------------
    Surfaces — the ruled schoolbook
    -------------------------------------------------------------------------- */
-.panel {
-  background: var(--rp-panel);
-  border: 1px solid var(--rp-line);
-  border-radius: var(--radius-lg);
-}
-
+/* There are no cards. Content sits on the page; a group is separated from
+   the next by a hairline and space, never by a box with a fill, a border on
+   four sides and a radius. These names survive so older markup stays valid,
+   but each one is only a rule above its content. */
+.panel,
 .card {
-  background: var(--rp-raised);
-  border: 1px solid var(--rp-line);
-  border-radius: var(--radius-lg);
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--rp-line);
+  border-radius: 0;
 }
 
 .card-hover {
-  transition:
-    border-color var(--rp-duration-base) var(--rp-ease),
-    background-color var(--rp-duration-base) var(--rp-ease);
+  transition: background-color var(--rp-duration-fast) var(--rp-ease);
 }
 
 .card-hover:hover {
-  border-color: var(--rp-line-strong);
   background: var(--rp-overlay);
 }
 
@@ -439,8 +456,19 @@ button:disabled {
   background: var(--rp-overlay);
 }
 
+/* Selecting a task is a native checkbox in the mauve of the palette. It is
+   a real input, so the keyboard, screen readers and forms all understand it. */
+.task-check {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  margin: 0;
+  accent-color: var(--rp-mark);
+  cursor: pointer;
+}
+
 .ledger-row[data-selected='true'] {
-  background: color-mix(in srgb, var(--rp-accent) 10%, transparent);
+  background: color-mix(in srgb, var(--rp-mark) 26%, transparent);
 }
 
 /* The margin rule — the gutter line of an exercise book. */
@@ -460,28 +488,45 @@ button:disabled {
   background: var(--rp-rule);
 }
 
-/* A sheet of paper: the surface a page is written on. */
-.sheet {
-  background: var(--rp-raised);
-  border: 1px solid var(--rp-line);
-  border-radius: var(--radius-md);
+/* A note that must be read: a warning, an error, a setup hint. It is a
+   coloured rule in the margin, not a tinted box. The colour is set with
+   data-tone; the text keeps the normal text colour so it stays readable. */
+.note {
+  border-left: 2px solid var(--rp-accent);
+  padding: 0.125rem 0 0.125rem 0.875rem;
+  color: var(--rp-text);
 }
 
+.note[data-tone='warn'] {
+  border-left-color: var(--rp-warn);
+}
+
+.note[data-tone='danger'] {
+  border-left-color: var(--rp-danger);
+}
+
+/* A sheet is the page itself: no surface of its own. */
+.sheet {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+/* A row is a line in the ledger, not a box. */
 .row-item {
-  background: var(--rp-raised);
-  border: 1px solid var(--rp-line);
-  border-radius: var(--radius-md);
-  transition:
-    border-color var(--rp-duration-base) var(--rp-ease),
-    background-color var(--rp-duration-base) var(--rp-ease);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--rp-line);
+  border-radius: 0;
+  transition: background-color var(--rp-duration-fast) var(--rp-ease);
 }
 
 .row-item:hover {
-  border-color: var(--rp-line-strong);
+  background: var(--rp-overlay);
 }
 
-.row-item + .row-item {
-  margin-top: 0.5rem;
+.row-item:first-child {
+  border-top: 1px solid var(--rp-line);
 }
 
 /* --------------------------------------------------------------------------
@@ -554,7 +599,8 @@ button:disabled {
   background: var(--rp-raised);
   color: var(--rp-text);
   border: 1px solid var(--rp-line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
+  min-height: 2.5rem;
   font-family: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
@@ -582,14 +628,14 @@ button:disabled {
 }
 
 .btn-primary {
-  background: var(--rp-accent);
-  color: var(--rp-accent-ink);
-  border-color: var(--rp-accent);
+  background: var(--rp-mark);
+  color: var(--rp-mark-ink);
+  border-color: var(--rp-mark);
 }
 
 .btn-primary:hover {
-  background: var(--rp-accent-hover);
-  border-color: var(--rp-accent-hover);
+  background: var(--rp-mark-hover);
+  border-color: var(--rp-mark-hover);
 }
 
 .btn-danger {
@@ -604,6 +650,7 @@ button:disabled {
 }
 
 .btn-sm {
+  min-height: 2rem;
   padding: 0.4rem 0.65rem;
   font-size: 0.75rem;
 }
@@ -614,9 +661,28 @@ button:disabled {
 }
 
 .btn-icon {
+  min-height: 0;
   padding: 0;
   width: 2rem;
   height: 2rem;
+}
+
+/* A finger is not a cursor: on a touch screen every control is at least
+   44px, the WCAG target size. Desktop keeps the denser geometry. */
+@media (pointer: coarse) {
+  .btn {
+    min-height: 2.75rem;
+  }
+
+  .btn-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .field {
+    min-height: 2.75rem;
+    font-size: 1rem;
+  }
 }
 
 /* A button that reads as a link: no border, no fill until it is used. */

@@ -7,8 +7,8 @@ import { SparkIcon } from './icons';
 export default function FirebaseSetupNotice() {
   return (
     <main className="relative grid min-h-dvh place-items-center overflow-hidden px-4 py-10">
-      <section className="card relative w-full max-w-xl p-6 sm:p-8" aria-labelledby="setup-title">
-        <div className="grid h-12 w-12 place-items-center rounded-xl bg-rp-accent/10 text-rp-accent" aria-hidden="true">
+      <section className="relative w-full max-w-xl" aria-labelledby="setup-title">
+        <div className="text-rp-accent" aria-hidden="true">
           <SparkIcon className="h-6 w-6" />
         </div>
         <p className="mt-5 text-label text-rp-accent">Še en korak</p>
@@ -40,7 +40,7 @@ export default function FirebaseSetupNotice() {
             Ustavi in znova zaženi razvojni strežnik.
           </li>
         </ol>
-        <p className="mt-6 rounded-md border border-rp-warn/25 bg-rp-warn/[.06] p-3 text-small leading-5 text-rp-warn">
+        <p className="note mt-6 text-small" data-tone="warn">
           Vrednosti iz Firebase so nastavitve brskalniške aplikacije. V{' '}
           <code className="rounded bg-rp-overlay px-1 py-0.5 text-rp-text">.env.local</code> nikoli ne
           dodajaj Admin SDK zasebnega ključa.

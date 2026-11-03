@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useFocusSessions } from '../hooks/useStudy';
 import { getSlovenianDateKey } from '../utils/dates';
+import { useI18n } from '../i18n';
 
 const FOCUS_MINUTES = 25;
 const BREAK_MINUTES = 5;
@@ -10,6 +11,7 @@ function formatTime(seconds) {
 }
 
 export default function FocusTimer() {
+  const { t } = useI18n();
   const [isBreak, setIsBreak] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(FOCUS_MINUTES * 60);
   const [running, setRunning] = useState(false);
@@ -38,8 +40,8 @@ export default function FocusTimer() {
   const circumference = 2 * Math.PI * 42;
 
   const message = finished
-    ? isBreak ? 'Odmor je končan.' : 'Seja je zabeležena. Vzemi si odmor.'
-    : running ? 'Ena stvar naenkrat.' : 'Začni, ko si pripravljen.';
+    ? isBreak ? t('Odmor je končan.') : t('Seja je zapisana. Vzemi si odmor.')
+    : running ? t('Ena stvar naenkrat.') : t('25 minut za eno stvar, nato 5 minut odmora.');
 
   function switchMode() {
     setRunning(false);
@@ -51,16 +53,16 @@ export default function FocusTimer() {
   }
 
   return (
-    <section className="card p-5" aria-label="Časovnik za osredotočeno učenje">
+    <section className="border-t border-rp-line pt-4" aria-label={t('Časovnik za učenje')}>
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-title text-rp-text">{isBreak ? 'Odmor' : 'Fokus'}</h2>
+        <h2 className="text-small font-semibold text-rp-muted">{isBreak ? t('Odmor') : t('Fokus')}</h2>
         <button type="button" onClick={switchMode} className="link-signal">
-          {isBreak ? 'Na fokus' : 'Na odmor'}
+          {isBreak ? t('Na fokus') : t('Na odmor')}
         </button>
       </div>
 
       <div className="mt-4 flex items-center gap-4">
-        <div className="relative grid h-24 w-24 shrink-0 place-items-center" role="timer" aria-label={`Preostalo ${formatTime(secondsLeft)}`}>
+        <div className="relative grid h-24 w-24 shrink-0 place-items-center" role="timer" aria-label={t('Preostalo {time}', { time: formatTime(secondsLeft) })}>
           <svg className="absolute inset-0 -rotate-90" viewBox="0 0 100 100" aria-hidden="true">
             <circle cx="50" cy="50" r="42" fill="none" stroke="var(--rp-fill)" strokeWidth="7" />
             <circle
@@ -90,17 +92,17 @@ export default function FocusTimer() {
                 loggedRef.current = false;
                 setRunning((value) => (secondsLeft === 0 ? true : !value));
               }}
-              className="btn btn-primary !px-3.5 !py-2 !text-small"
+              className="btn btn-primary"
             >
-              {running ? 'Pavza' : 'Začni'}
+              {running ? t('Pavza') : t('Začni')}
             </button>
             <button
               type="button"
               onClick={() => { setRunning(false); setFinished(false); setSecondsLeft(total); loggedRef.current = false; }}
-              className="btn !px-3 !py-2 !text-small"
-              aria-label="Ponastavi časovnik"
+              className="btn"
+              aria-label={t('Ponastavi časovnik')}
             >
-              Ponastavi
+              {t('Ponastavi')}
             </button>
           </div>
         </div>

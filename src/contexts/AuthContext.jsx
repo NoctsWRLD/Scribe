@@ -44,7 +44,8 @@ export function AuthProvider({ children }) {
     await updateProfile(result.user, { displayName });
     try {
       const { createUserProfile } = await import('../services/profileService');
-      await createUserProfile(result.uid, { displayName, email });
+      // `result` is a UserCredential; the uid lives on its user.
+      await createUserProfile(result.user.uid, { displayName, email });
     } catch (error) {
       // The account exists even when the profile write fails; the profile is
       // created the next time the account is opened.
@@ -57,6 +58,22 @@ export function AuthProvider({ children }) {
     const auth = await getAuthInstance();
     const { signInWithEmailAndPassword } = await import('firebase/auth');
     return signInWithEmailAndPassword(auth, email, password);
+  }
+
+  /**
+   * Send a reset link. The caller shows the same message whether or not the
+   * address has an account, so the form cannot be used to find out who is
+   * registered.
+   */
+  async function resetPassword(email) {
+    const auth = await getAuthInstance();
+    const { sendPasswordResetEmail } = await import('firebase/auth');
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (error) {
+      if (error?.code === 'auth/user-not-found') return;
+      throw error;
+    }
   }
 
   async function logout() {
@@ -188,6 +205,7 @@ export function AuthProvider({ children }) {
     sessionResolved,
     register,
     login,
+    resetPassword,
     logout,
     updateUserProfile,
     updatePreferences,

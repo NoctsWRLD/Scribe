@@ -2,16 +2,38 @@ import { addDaysToDateKey, getDateKeyDayOfWeek, getSlovenianDateKey } from './da
 
 export const DAY_NAMES = ['Ponedeljek', 'Torek', 'Sreda', 'Četrtek', 'Petek', 'Sobota', 'Nedelja'];
 
-const DAY_PATTERNS = [
-  /^(ponedeljek|pon)\b/i,
-  /^(torek|tor)\b/i,
-  /^(sreda|sre)\b/i,
-  /^(četrtek|čet|cetrtek|cet)\b/i,
-  /^(petek|pet)\b/i,
-  /^(sobota|sob)\b/i,
-  /^(nedelja|ned)\b/i,
+/**
+ * Weekday names a timetable photo may use, Monday first, in every language
+ * the interface ships in (sl, en, de, it, hr). Two-letter German forms ("Mo",
+ * "Di") only count when they stand alone or end in a dot or colon, so a lesson
+ * line that happens to start with "Do" or "So" is not read as a day.
+ */
+const DAY_ALIASES = [
+  ['ponedeljek', 'ponedjeljak', 'pon', 'monday', 'mon', 'montag', 'lunedì', 'lunedi', 'lun'],
+  ['torek', 'tor', 'utorak', 'uto', 'tuesday', 'tues', 'tue', 'dienstag', 'martedì', 'martedi', 'mar'],
+  ['sreda', 'srijeda', 'sre', 'sri', 'wednesday', 'wed', 'mittwoch', 'mercoledì', 'mercoledi', 'mer'],
+  ['četrtek', 'cetrtek', 'četvrtak', 'cetvrtak', 'čet', 'cet', 'thursday', 'thurs', 'thur', 'thu', 'donnerstag', 'giovedì', 'giovedi', 'gio'],
+  ['petek', 'petak', 'pet', 'friday', 'fri', 'freitag', 'venerdì', 'venerdi', 'ven'],
+  ['sobota', 'subota', 'sob', 'sub', 'saturday', 'sat', 'samstag', 'sabato', 'sab'],
+  ['nedelja', 'nedjelja', 'ned', 'sunday', 'sun', 'sonntag', 'domenica', 'dom'],
 ];
-const DAY_STRIP = /^\s*(ponedeljek|pon|torek|tor|sreda|sre|četrtek|čet|cetrtek|cet|petek|pet|sobota|sob|nedelja|ned)\.?[\s:–\-. ) ]*/i;
+const SHORT_GERMAN = ['mo', 'di', 'mi', 'do', 'fr', 'sa', 'so'];
+
+// The aliases are plain letters, so they can go into a pattern unescaped.
+// Longest first, so "četrtek" wins over "čet".
+const byLength = (a, b) => b.length - a.length;
+const NOT_LETTER = String.raw`(?=$|[^\p{L}])`;
+
+const DAY_PATTERNS = DAY_ALIASES.map((aliases, index) => {
+  const words = [...aliases].sort(byLength).join('|');
+  return new RegExp(String.raw`^\s*(?:(?:${words})${NOT_LETTER}|${SHORT_GERMAN[index]}(?=$|[.:]))`, 'iu');
+});
+
+const ALL_WORDS = DAY_ALIASES.flat().sort(byLength).join('|');
+const DAY_STRIP = new RegExp(
+  String.raw`^\s*(?:(?:${ALL_WORDS})${NOT_LETTER}|(?:${SHORT_GERMAN.join('|')})(?=$|[.:]))\.?[\s:–\-.)]*`,
+  'iu',
+);
 
 export function detectDay(line) {
   for (let i = 0; i < DAY_PATTERNS.length; i++) {

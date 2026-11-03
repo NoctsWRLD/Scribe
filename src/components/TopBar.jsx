@@ -2,8 +2,10 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
-import { formatSlovenianDate, getSlovenianDateKey } from '../utils/dates';
+import { useI18n } from '../i18n';
+import { formatDate, getSlovenianDateKey } from '../utils/dates';
 import Logo from './Logo';
+import LanguageSelect from './LanguageSelect';
 
 // Loaded after the first paint so the database SDK never blocks the public page.
 const TodayCount = lazy(() => import('./TodayCount'));
@@ -14,6 +16,7 @@ function AccountMenu() {
   const buttonRef = useRef(null);
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { t } = useI18n();
 
   useEffect(() => {
     if (!open) return undefined;
@@ -42,8 +45,8 @@ function AccountMenu() {
       <button
         ref={buttonRef}
         type="button"
-        title="Profil in nastavitve"
-        aria-label="Profil in nastavitve"
+        title={t('Profil in nastavitve')}
+        aria-label={t('Profil in nastavitve')}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
@@ -57,26 +60,26 @@ function AccountMenu() {
           <div className="fixed inset-0 z-40 cursor-default" onClick={() => setOpen(false)} aria-hidden="true" />
           <div
             role="menu"
-            aria-label="Profil in nastavitve"
-            className="rise absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-lg border border-rp-line bg-rp-raised p-1.5 shadow-[var(--rp-shadow-3)]"
+            aria-label={t('Profil in nastavitve')}
+            className="rise absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-md border border-rp-line bg-rp-raised p-1.5 shadow-[var(--rp-shadow-3)]"
           >
             <Link
               to="/profile"
               role="menuitem"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-body font-medium text-rp-text transition-colors hover:bg-rp-overlay"
+              className="flex items-center gap-3 rounded-sm px-3 py-2 text-body font-medium text-rp-text transition-colors hover:bg-rp-overlay"
             >
               <UserIcon className="h-4 w-4 text-rp-muted" />
-              Moj profil
+              {t('Moj profil')}
             </Link>
             <Link
               to="/settings"
               role="menuitem"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-body font-medium text-rp-text transition-colors hover:bg-rp-overlay"
+              className="flex items-center gap-3 rounded-sm px-3 py-2 text-body font-medium text-rp-text transition-colors hover:bg-rp-overlay"
             >
               <GearIcon className="h-4 w-4 text-rp-muted" />
-              Nastavitve
+              {t('Nastavitve')}
             </Link>
             <div className="my-1.5 border-t border-rp-line" role="separator" />
             <button
@@ -86,7 +89,7 @@ function AccountMenu() {
               className="btn btn-danger w-full !justify-start !px-3 !py-2 !text-body"
             >
               <LogOutIcon className="h-4 w-4" />
-              Odjava
+              {t('Odjava')}
             </button>
           </div>
         </>
@@ -97,9 +100,10 @@ function AccountMenu() {
 
 function ThemeToggle() {
   const { theme, setTheme } = useSettings();
+  const { t } = useI18n();
   const next = theme === 'noc' ? 'dnevnik' : 'noc';
   // The label names the theme the button switches *to*, not the current one.
-  const label = next === 'noc' ? 'Preklopi na temni videz' : 'Preklopi na svetli videz';
+  const label = next === 'noc' ? t('Preklopi na temni videz') : t('Preklopi na svetli videz');
   return (
     <button
       type="button"
@@ -114,21 +118,26 @@ function ThemeToggle() {
 }
 
 export default function TopBar({ onOpenMenu }) {
-  const dateLabel = formatSlovenianDate(getSlovenianDateKey(), { weekday: 'long', day: 'numeric', month: 'long' });
+  const { localeTag, t } = useI18n();
+  const dateLabel = formatDate(
+    getSlovenianDateKey(),
+    { weekday: 'long', day: 'numeric', month: 'long' },
+    localeTag,
+  );
 
   return (
-    <header className="sticky top-0 z-30 border-b border-rp-line bg-rp-panel/85 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 border-b border-rp-line bg-rp-panel/90 backdrop-blur-xl">
       <div className="flex h-16 items-center gap-3 px-4 md:px-6">
         <button
           type="button"
           onClick={onOpenMenu}
-          aria-label="Odpri meni"
+          aria-label={t('Odpri meni')}
           className="btn btn-icon !h-9 !w-9 lg:hidden"
         >
           <MenuIcon className="h-5 w-5" />
         </button>
 
-        <Link to="/dashboard" className="flex items-center gap-2 lg:hidden" aria-label="Scribe domov">
+        <Link to="/dashboard" className="flex items-center gap-2 lg:hidden" aria-label={t('Scribe domov')}>
           <Logo size={28} />
           <span className="font-display text-[15px] font-bold tracking-tight text-rp-text">Scribe</span>
         </Link>
@@ -141,6 +150,9 @@ export default function TopBar({ onOpenMenu }) {
           <Suspense fallback={null}>
             <TodayCount />
           </Suspense>
+          <span className="hidden sm:block">
+            <LanguageSelect compact />
+          </span>
           <ThemeToggle />
           <AccountMenu />
         </div>

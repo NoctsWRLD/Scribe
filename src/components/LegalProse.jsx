@@ -13,7 +13,7 @@ export default function LegalProse({ title, intro, updated, children, note }) {
       </header>
 
       {note && (
-        <p className="mt-6 rounded-md border border-rp-warn/25 bg-rp-warn/[.07] p-4 text-small leading-6 text-rp-warn">
+        <p className="note mt-6 text-small leading-6" data-tone="warn">
           {note}
         </p>
       )}

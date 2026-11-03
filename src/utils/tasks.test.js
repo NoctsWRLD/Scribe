@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filterTasks, summarizeTasks } from './tasks';
+import { filterTasks, planSelection, summarizeTasks } from './tasks';
 
 const subjects = [
   { id: 's1', name: 'Matematika' },
@@ -86,5 +86,30 @@ describe('summarizeTasks', () => {
     const empty = summarizeTasks([], '2026-10-21', '2026-10-24');
     expect(empty.pending).toBe(0);
     expect(empty.completion).toBe(0);
+  });
+});
+
+describe('planSelection', () => {
+  it('does nothing until something is selected', () => {
+    expect(planSelection(tasks, [])).toEqual({ action: 'none', ids: [], all: [] });
+  });
+
+  it('completes a single selected task only through the plan, not on tick', () => {
+    expect(planSelection(tasks, ['1'])).toEqual({ action: 'complete', ids: ['1'], all: ['1'] });
+  });
+
+  it('completes the open tasks of a mixed selection and leaves finished ones alone', () => {
+    const plan = planSelection(tasks, ['1', '4', '2']);
+    expect(plan.action).toBe('complete');
+    expect(plan.ids).toEqual(['1', '2']);
+  });
+
+  it('offers to reopen when every selected task is already finished', () => {
+    expect(planSelection(tasks, ['4'])).toEqual({ action: 'reopen', ids: ['4'], all: ['4'] });
+  });
+
+  it('ignores ids that are no longer visible', () => {
+    const visible = tasks.filter((task) => task.id !== '3');
+    expect(planSelection(visible, ['3'])).toEqual({ action: 'none', ids: [], all: [] });
   });
 });

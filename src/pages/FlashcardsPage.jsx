@@ -7,8 +7,7 @@ import Skeleton from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { CardIcon, EditIcon, TrashIcon } from '../components/icons';
-import { getSubjectColor } from '../utils/colors';
-import { countedNoun } from '../utils/slovenian';
+import { useI18n } from '../i18n';
 
 function shuffle(list) {
   const array = [...list];
@@ -21,6 +20,7 @@ function shuffle(list) {
 
 export default function FlashcardsPage() {
   const navigate = useNavigate();
+  const { t, tn } = useI18n();
   const { subjects, loading: subjectsLoading } = useSubjects();
   const { cards, loading, error, addCard, updateCard, deleteCard } = useFlashcards();
   const [deckId, setDeckId] = useState('');
@@ -29,16 +29,13 @@ export default function FlashcardsPage() {
   const [studying, setStudying] = useState(false);
   const [order, setOrder] = useState([]);
   const [index, setIndex] = useState(0);
-  const [flipped, setFlipped] = useState(false);
+  const [revealed, setRevealed] = useState(false);
 
   const activeDeckId = deckId || subjects[0]?.id || '';
-  const deckCards = useMemo(
-    () => cards.filter((card) => card.subjectId === activeDeckId),
-    [cards, activeDeckId],
-  );
+  const deckCards = useMemo(() => cards.filter((card) => card.subjectId === activeDeckId), [cards, activeDeckId]);
   const knownCount = deckCards.filter((card) => card.known).length;
   const activeSubject = subjects.find((subject) => subject.id === activeDeckId);
-  const activeColor = activeSubject ? getSubjectColor(activeSubject.colorIndex) : null;
+  const cardForms = { one: t('kartica'), two: t('kartici'), few: t('kartice'), other: t('kartic') };
 
   function openNew() {
     if (subjectsLoading) return;
@@ -54,165 +51,143 @@ export default function FlashcardsPage() {
     if (!deckCards.length) return;
     setOrder(shuffle(deckCards.map((card) => card.id)));
     setIndex(0);
-    setFlipped(false);
+    setRevealed(false);
     setStudying(true);
   }
 
-  function currentCard() {
-    return deckCards.find((card) => card.id === order[index]) || null;
-  }
+  const card = studying ? deckCards.find((item) => item.id === order[index]) || null : null;
 
   function mark(known) {
-    const card = currentCard();
     if (!card) return;
     if (card.known !== known) updateCard(card.id, { known });
-    setFlipped(false);
-    if (index + 1 >= order.length) {
-      setStudying(false);
-    } else {
-      setIndex(index + 1);
-    }
+    setRevealed(false);
+    if (index + 1 >= order.length) setStudying(false);
+    else setIndex(index + 1);
   }
 
-  const card = studying ? currentCard() : null;
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <section className="rise margin-rule">
-        <h1 className="text-page text-rp-text">Kartice</h1>
+        <h1 className="text-page text-rp-text">{t('Kartice')}</h1>
         <p className="mt-2 max-w-xl text-body text-rp-muted">
-          Učenje s karticami utrdi spomin: preberi vprašanje, odgovori na glas, nato preveri.
+          {t('Preberi vprašanje, odgovori na glas, nato preveri. Tako si snov zapomniš bolje kot z branjem.')}
         </p>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <select
-            value={activeDeckId}
-            onChange={(event) => { setDeckId(event.target.value); setStudying(false); }}
-            className="field !w-auto"
-            aria-label="Izberi predmet"
-          >
-            {subjects.map((subject) => (
-              <option key={subject.id} value={subject.id}>{subject.name}</option>
-            ))}
-          </select>
-          <button type="button" onClick={openNew} className="btn">Nova kartica</button>
-          <button
-            type="button"
-            onClick={startStudy}
-            disabled={!deckCards.length}
-            className="btn btn-primary disabled:opacity-50"
-          >
-            Uči se ({deckCards.length})
-          </button>
-        </div>
+        {subjects.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <select
+              value={activeDeckId}
+              onChange={(event) => { setDeckId(event.target.value); setStudying(false); }}
+              className="field !w-auto"
+              aria-label={t('Izberi predmet')}
+            >
+              {subjects.map((subject) => (
+                <option key={subject.id} value={subject.id}>{subject.name}</option>
+              ))}
+            </select>
+            <button type="button" onClick={startStudy} disabled={!deckCards.length} className="btn btn-primary">
+              {t('Začni ponavljanje')}
+            </button>
+            <button type="button" onClick={openNew} className="btn">{t('Nova kartica')}</button>
+          </div>
+        )}
       </section>
 
       {error ? (
         <ErrorState message={error} />
       ) : loading || subjectsLoading ? (
-        <div className="card p-4"><Skeleton lines={4} /></div>
+        <Skeleton lines={4} />
       ) : studying && card ? (
-        <section className="mx-auto max-w-xl" aria-label="Učenje">
-          <div className="mb-3 flex items-center justify-between text-small text-rp-muted">
-            <span className="mono">Kartica {index + 1} / {order.length}</span>
-            <span className="mono">{knownCount} / {deckCards.length} osvojenih</span>
+        <section className="max-w-xl" aria-label={t('Ponavljanje')}>
+          <div className="flex items-center justify-between text-small text-rp-muted">
+            <span className="mono">{t('{current} od {total}', { current: index + 1, total: order.length })}</span>
+            <button type="button" onClick={() => setStudying(false)} className="link-signal">{t('Končaj')}</button>
           </div>
-          <div
-            className="mb-3 h-1.5 overflow-hidden rounded-full bg-rp-fill"
-            role="progressbar"
-            aria-valuenow={index + 1}
-            aria-valuemin={1}
-            aria-valuemax={order.length}
-            aria-label="Potek učenja"
-          >
-            <div
-              className="h-full rounded-full transition-[width] duration-300"
-              style={{ width: `${((index + 1) / order.length) * 100}%`, background: 'var(--rp-accent)' }}
-            />
+          <ul className="rail mt-2" aria-hidden="true">
+            {order.map((id, position) => (
+              <li key={id} className="rail-seg" data-tone={position < index ? 'accent' : position === index ? 'warn' : 'empty'}>
+                <span style={{ width: '100%' }} />
+              </li>
+            ))}
+          </ul>
+
+          {/* No card: the question is set on the page, the answer opens
+              under it on a hairline. */}
+          <div className="mt-8 min-h-48">
+            <p className="text-small text-rp-muted">{activeSubject?.name}</p>
+            <p className="font-display mt-1 text-2xl font-bold leading-snug text-rp-text sm:text-3xl">{card.front}</p>
+            {revealed ? (
+              <p className="mt-6 whitespace-pre-wrap border-t border-rp-line pt-4 text-lg leading-relaxed text-rp-text" aria-live="polite">
+                {card.back}
+              </p>
+            ) : (
+              <button type="button" onClick={() => setRevealed(true)} className="btn mt-6">{t('Pokaži odgovor')}</button>
+            )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => setFlipped((value) => !value)}
-            className="card grid min-h-64 w-full cursor-pointer place-items-center p-8 text-center transition-transform active:scale-[.99]"
-            aria-label={flipped ? 'Pokaži vprašanje' : 'Pokaži odgovor'}
-          >
-            <div className={`flip-inner ${flipped ? 'flipped' : ''} grid w-full place-items-center`}>
-              {!flipped ? (
-                <div className="flip-face">
-                  {activeSubject && (
-                    <p className={`text-label ${activeColor?.text || 'text-rp-muted'}`}>{activeSubject.name}</p>
-                  )}
-                  <p className="font-display mt-2 text-2xl font-bold leading-snug text-rp-text">{card.front}</p>
-                  <p className="mt-4 text-small text-rp-muted">Klikni za odgovor</p>
-                </div>
-              ) : (
-                <div className="flip-face flip-back">
-                  <p className="text-label text-rp-muted">Odgovor</p>
-                  <p className="mt-2 text-lg leading-relaxed text-rp-text">{card.back}</p>
-                </div>
-              )}
+          {revealed && (
+            <div className="mt-6 grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => mark(false)} className="btn btn-lg">{t('Še ne znam')}</button>
+              <button type="button" onClick={() => mark(true)} className="btn btn-primary btn-lg">{t('Znam')}</button>
             </div>
-          </button>
-
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => mark(false)} className="btn !py-3">Še ne znam</button>
-            <button type="button" onClick={() => mark(true)} className="btn btn-primary !py-3">Znam</button>
-          </div>
-          <button type="button" onClick={() => setStudying(false)} className="link-signal mt-4">Končaj učenje</button>
+          )}
         </section>
+      ) : !subjects.length ? (
+        <EmptyState
+          icon={<CardIcon className="h-5 w-5" />}
+          title={t('Najprej dodaj predmet')}
+          description={t('Kartice so razvrščene po predmetih.')}
+          action={<button type="button" onClick={openNew} className="btn btn-primary">{t('Ustvari predmet')}</button>}
+        />
       ) : (
-        <section aria-label="Seznam kartic">
-          <div className="mb-3 flex items-baseline justify-between gap-3">
-            <h2 className="text-title text-rp-text">
-              {activeSubject ? activeSubject.name : 'Kartice'}
-            </h2>
+        <section aria-labelledby="deck-heading">
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <h2 id="deck-heading" className="text-subtitle text-rp-text">{activeSubject?.name}</h2>
             {deckCards.length > 0 && (
-              <p className="text-small text-rp-muted">
-                {countedNoun(deckCards.length, 'kartica', 'kartici', 'kartice', 'kartic')} ·{' '}
-                {knownCount} osvojenih
+              <p className="mono text-small text-rp-muted">
+                {tn(deckCards.length, cardForms)}, {t('{count} znaš', { count: knownCount })}
               </p>
             )}
           </div>
 
           {deckCards.length === 0 ? (
             <EmptyState
-              icon={<CardIcon className="h-6 w-6" />}
-              title="Začni zbirko za ta predmet"
-              description="Dodaj 5–10 kartic z vprašanji, ki se največkrat pojavijo na testih."
-              action={<button type="button" onClick={openNew} className="btn btn-primary">Dodaj kartico</button>}
+              icon={<CardIcon className="h-5 w-5" />}
+              title={t('Ta predmet še nima kartic')}
+              description={t('Začni s 5 do 10 vprašanji, ki se pogosto pojavijo na testih.')}
+              action={<button type="button" onClick={openNew} className="btn btn-primary">{t('Dodaj kartico')}</button>}
             />
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <ul className="ledger">
               {deckCards.map((deckCard) => (
-                <div key={deckCard.id} className={`card card-hover p-4 ${deckCard.known ? 'opacity-75' : ''}`}>
-                  <p className="text-body font-semibold leading-snug text-rp-text">{deckCard.front}</p>
-                  <p className="mt-1 line-clamp-2 text-small text-rp-muted">{deckCard.back}</p>
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className={`chip ${deckCard.known ? 'chip-accent' : ''}`}>
-                      {deckCard.known ? 'Osvojeno' : 'V učenju'}
-                    </span>
-                    <div className="flex items-center">
-                      <button
-                        type="button"
-                        onClick={() => { setEditCard(deckCard); setModalOpen(true); }}
-                        aria-label={`Uredi kartico ${deckCard.front}`}
-                        className="rounded-md p-2 text-rp-muted transition-colors hover:bg-rp-overlay hover:text-rp-text"
-                      >
-                        <EditIcon className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { if (window.confirm('Izbrišem kartico?')) deleteCard(deckCard.id); }}
-                        aria-label={`Izbriši kartico ${deckCard.front}`}
-                        className="btn btn-icon hover:!text-rp-danger"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </button>
-                    </div>
+                <li key={deckCard.id} className="ledger-row flex items-start gap-3 py-3 pr-1">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-body font-semibold text-rp-text">{deckCard.front}</p>
+                    <p className="mt-0.5 line-clamp-2 text-small text-rp-muted">{deckCard.back}</p>
                   </div>
-                </div>
+                  <span className={`mt-0.5 shrink-0 text-small font-semibold ${deckCard.known ? 'text-rp-success' : 'text-rp-muted'}`}>
+                    {deckCard.known ? t('Znaš') : t('Učiš se')}
+                  </span>
+                  <span className="flex shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => { setEditCard(deckCard); setModalOpen(true); }}
+                      aria-label={t('Uredi kartico {title}', { title: deckCard.front })}
+                      className="btn btn-icon border-transparent bg-transparent text-rp-muted hover:text-rp-text"
+                    >
+                      <EditIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { if (window.confirm(t('Izbrišem kartico?'))) deleteCard(deckCard.id); }}
+                      aria-label={t('Izbriši kartico {title}', { title: deckCard.front })}
+                      className="btn btn-icon border-transparent bg-transparent text-rp-muted hover:!text-rp-danger"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+                  </span>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </section>
       )}

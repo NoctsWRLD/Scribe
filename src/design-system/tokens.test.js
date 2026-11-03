@@ -97,6 +97,13 @@ describe('token system', () => {
     expect(ratio, `accent-ink on accent is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
   });
 
+  it.each(THEMES)('%s theme — text on the mauve fill meets WCAG AA', (_name, tokens) => {
+    for (const fill of ['rp-mark', 'rp-mark-hover']) {
+      const ratio = contrast(tokens['rp-mark-ink'], tokens[fill]);
+      expect(ratio, `mark-ink on ${fill} is ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
   it.each(THEMES)('%s theme — accent and status colours read as text on the canvas', (_name, tokens) => {
     for (const role of ['rp-accent', 'rp-warn', 'rp-danger', 'rp-success', 'rp-info']) {
       const ratio = contrast(tokens[role], tokens['rp-canvas']);

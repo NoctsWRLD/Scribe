@@ -160,5 +160,45 @@ export function useTasks() {
     }
   }
 
-  return { tasks, loading, error, addTask, addTasks, updateTask, toggleTask, deleteTask };
+  /**
+   * Mark several tasks done (or open again) in one write. A batch either
+   * lands completely or not at all, so a dropped connection never leaves half
+   * of a selection ticked.
+   */
+  async function setTasksCompleted(ids, completed) {
+    if (!ids.length) return true;
+    try {
+      for (let i = 0; i < ids.length; i += 400) {
+        const batch = writeBatch(db);
+        for (const id of ids.slice(i, i + 400)) {
+          batch.update(doc(db, 'tasks', id), { completed: Boolean(completed) });
+        }
+        await batch.commit();
+      }
+      return true;
+    } catch (err) {
+      reportWriteError('Completing tasks', err);
+      return false;
+    }
+  }
+
+  async function deleteTasks(ids) {
+    if (!ids.length) return true;
+    try {
+      for (let i = 0; i < ids.length; i += 400) {
+        const batch = writeBatch(db);
+        for (const id of ids.slice(i, i + 400)) batch.delete(doc(db, 'tasks', id));
+        await batch.commit();
+      }
+      return true;
+    } catch (err) {
+      reportWriteError('Deleting tasks', err);
+      return false;
+    }
+  }
+
+  return {
+    tasks, loading, error,
+    addTask, addTasks, updateTask, toggleTask, deleteTask, setTasksCompleted, deleteTasks,
+  };
 }

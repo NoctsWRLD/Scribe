@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import Modal from '../Modal';
 import { useAuth } from '../../contexts/AuthContext';
 import { authErrorMessage } from '../../utils/authErrors';
+import { useI18n } from '../../i18n';
 
 /**
  * Deleting an account cannot be undone, so the student types their name and
- * their password. The list of what disappears is part of the confirmation —
- * not as a warning, but as a fact.
+ * their password.
  */
 export default function DeleteAccountModal({ isOpen, onClose, onConfirm, displayName }) {
+  const { t } = useI18n();
   const { currentUser } = useAuth();
   const [typedName, setTypedName] = useState('');
   const [password, setPassword] = useState('');
@@ -32,7 +33,7 @@ export default function DeleteAccountModal({ isOpen, onClose, onConfirm, display
     try {
       await onConfirm(password);
     } catch (err) {
-      setError(authErrorMessage(err));
+      setError(t(authErrorMessage(err)));
     } finally {
       setBusy(false);
     }
@@ -42,39 +43,20 @@ export default function DeleteAccountModal({ isOpen, onClose, onConfirm, display
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Izbriši račun"
-      description="Z izbrisom odidejo vsi tvoji predmeti, naloge, preverjanja, kartice in klepeti."
+      title={t('Izbriši račun')}
+      description={t('Izbrišejo se vsi tvoji predmeti, naloge, preverjanja, kartice in sporočila. Tega ni mogoče razveljaviti.')}
       size="sm"
     >
       <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          name="username"
-          value={currentUser?.email || ''}
-          readOnly
-          autoComplete="username"
-          hidden
-        />
-        <p className="text-small leading-5 text-rp-muted">
-          Tega ni mogoče razveljaviti. Za varnost vpiši svoje ime in geslo.
-        </p>
+        <input type="text" name="username" value={currentUser?.email || ''} readOnly autoComplete="username" hidden />
 
-        <div className="mt-4">
-          <label className="field-label" htmlFor="delete-name">Ime računa</label>
-          <input
-            id="delete-name"
-            value={typedName}
-            onChange={(event) => setTypedName(event.target.value)}
-            placeholder={displayName || 'Ime'}
-            className="field"
-          />
-          {typedName && !nameMatches && (
-            <p className="mt-1.5 text-small text-rp-muted">Ime se mora ujemati z imenom računa.</p>
-          )}
+        <div>
+          <label className="field-label" htmlFor="delete-name">{t('Za potrditev vpiši svoje ime: {name}', { name: displayName })}</label>
+          <input id="delete-name" value={typedName} onChange={(event) => setTypedName(event.target.value)} className="field" autoComplete="off" />
         </div>
 
         <div className="mt-4">
-          <label className="field-label" htmlFor="delete-password">Geslo</label>
+          <label className="field-label" htmlFor="delete-password">{t('Geslo')}</label>
           <input
             id="delete-password"
             type="password"
@@ -85,20 +67,12 @@ export default function DeleteAccountModal({ isOpen, onClose, onConfirm, display
           />
         </div>
 
-        {error && (
-          <p className="mt-3 text-small text-rp-danger" role="alert">
-            {error}
-          </p>
-        )}
+        {error && <p className="mt-3 text-small text-rp-danger" role="alert">{error}</p>}
 
         <div className="mt-5 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="btn">Prekliči</button>
-          <button
-            type="submit"
-            disabled={busy || !nameMatches || !password}
-            className="btn btn-danger"
-          >
-            {busy ? 'Brišem…' : 'Izbriši račun'}
+          <button type="button" onClick={onClose} className="btn">{t('Prekliči')}</button>
+          <button type="submit" disabled={busy || !nameMatches || !password} className="btn btn-danger">
+            {busy ? t('Brišem…') : t('Izbriši račun')}
           </button>
         </div>
       </form>

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import Modal from './Modal';
+import { useI18n } from '../i18n';
 
 function ExamForm({ onClose, onSave, subjects, exam }) {
+  const { t } = useI18n();
   const [title, setTitle] = useState(exam?.title || '');
   const [subjectId, setSubjectId] = useState(exam?.subjectId || subjects[0]?.id || '');
   const [date, setDate] = useState(exam?.date || '');
@@ -9,7 +11,7 @@ function ExamForm({ onClose, onSave, subjects, exam }) {
   function handleSubmit(event) {
     event.preventDefault();
     if (!title.trim() || !subjectId || !date) return;
-    onSave({ title: title.trim(), subjectId, date });
+    onSave({ title: title.trim().slice(0, 120), subjectId, date });
     onClose();
   }
 
@@ -17,33 +19,32 @@ function ExamForm({ onClose, onSave, subjects, exam }) {
     <Modal
       isOpen
       onClose={onClose}
-      title={exam ? 'Uredi preverjanje' : 'Novo preverjanje'}
-      description="Zapiši test, spraševanje ali izpit — odštevanje te bo držalo v ritmu."
+      title={exam ? t('Uredi preverjanje') : t('Novo preverjanje')}
       footer={
         <>
-          <button type="button" onClick={onClose} className="btn">Prekliči</button>
+          <button type="button" onClick={onClose} className="btn">{t('Prekliči')}</button>
           <button type="submit" form="exam-form" className="btn btn-primary">
-            {exam ? 'Shrani spremembe' : 'Dodaj preverjanje'}
+            {exam ? t('Shrani spremembe') : t('Dodaj preverjanje')}
           </button>
         </>
       }
     >
-      <form id="exam-form" onSubmit={handleSubmit} className="grid gap-3.5">
+      <form id="exam-form" onSubmit={handleSubmit} className="grid gap-4">
         <div>
-          <label className="field-label" htmlFor="exam-title">Kaj te čaka?</label>
+          <label className="field-label" htmlFor="exam-title">{t('Kaj te čaka?')}</label>
           <input
             id="exam-title"
             className="field"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            placeholder="npr. Pisno ocenjevanje — MAT"
+            placeholder={t('npr. Test iz matematike')}
             maxLength={120}
             required
           />
         </div>
-        <div className="grid gap-3.5 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="field-label" htmlFor="exam-subject">Predmet</label>
+            <label className="field-label" htmlFor="exam-subject">{t('Predmet')}</label>
             <select
               id="exam-subject"
               className="field"
@@ -51,14 +52,14 @@ function ExamForm({ onClose, onSave, subjects, exam }) {
               onChange={(event) => setSubjectId(event.target.value)}
               required
             >
-              <option value="">Izberi…</option>
+              <option value="">{t('Izberi…')}</option>
               {subjects.map((subject) => (
                 <option key={subject.id} value={subject.id}>{subject.name}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="field-label" htmlFor="exam-date">Datum</label>
+            <label className="field-label" htmlFor="exam-date">{t('Datum')}</label>
             <input
               id="exam-date"
               type="date"
@@ -76,13 +77,5 @@ function ExamForm({ onClose, onSave, subjects, exam }) {
 
 export default function ExamModal({ isOpen, onClose, onSave, subjects, exam }) {
   if (!isOpen) return null;
-  return (
-    <ExamForm
-      key={exam?.id || 'new'}
-      onClose={onClose}
-      onSave={onSave}
-      subjects={subjects}
-      exam={exam}
-    />
-  );
+  return <ExamForm key={exam?.id || 'new'} onClose={onClose} onSave={onSave} subjects={subjects} exam={exam} />;
 }

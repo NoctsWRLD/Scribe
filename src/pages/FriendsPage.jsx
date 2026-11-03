@@ -1,8 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 import {
-  useAllUsers,
   useFriends,
   useFriendRequests,
   useSentRequests,
@@ -10,19 +8,14 @@ import {
   respondToRequest,
 } from '../hooks/useChat';
 import AddFriendModal from '../components/AddFriendModal';
-import { ChatIcon, PlusIcon, SearchIcon, TrashIcon, UsersIcon } from '../components/icons';
-import { countedNoun } from '../utils/slovenian';
+import EmptyState from '../components/EmptyState';
+import { ChatIcon, PlusIcon, TrashIcon, UsersIcon } from '../components/icons';
+import { useI18n } from '../i18n';
 
-function MiniAvatar({ name, tone = 'accent', size = 36 }) {
-  const tones = {
-    accent: 'bg-rp-accent/12 text-rp-accent',
-    warn: 'bg-rp-warn/12 text-rp-warn',
-    rose: 'bg-rp-danger/12 text-rp-danger',
-  };
+function Avatar({ name }) {
   return (
     <span
-      className={`grid shrink-0 place-items-center rounded-full font-bold ${tones[tone] || tones.accent}`}
-      style={{ width: size, height: size, fontSize: size * 0.35 }}
+      className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-rp-overlay text-small font-bold text-rp-text"
       aria-hidden="true"
     >
       {(name?.[0] || '?').toUpperCase()}
@@ -30,270 +23,167 @@ function MiniAvatar({ name, tone = 'accent', size = 36 }) {
   );
 }
 
-function Section({ title, badge, children, action }) {
-  return (
-    <section className="sheet">
-      <div className="flex items-center gap-2 border-b border-rp-line px-5 py-3.5">
-        <h2 className="text-title text-rp-text">{title}</h2>
-        {badge != null && <span className="chip">{badge}</span>}
-        <span className="flex-1" />
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
-
+/**
+ * Friends: one button to add someone, then the people.
+ *
+ * The page has no search box of its own — adding happens in one dialog that
+ * takes a code or a name. What stays on the page is what a student comes
+ * back for: who wants to be friends, who already is, and who has not
+ * answered yet.
+ */
 export default function FriendsPage() {
-  const { userProfile } = useAuth();
+  const { t, tn } = useI18n();
   const { friends } = useFriends();
   const { requests } = useFriendRequests();
   const { sent } = useSentRequests();
   const navigate = useNavigate();
 
-  const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const [modalUser, setModalUser] = useState(null);
   const [status, setStatus] = useState(null);
 
-  const { users } = useAllUsers(search);
-
-  const friendUids = useMemo(() => friends.map((friend) => friend.uid), [friends]);
-  const sentUids = useMemo(() => sent.map((request) => request.toUid), [sent]);
-  const requestFromUids = useMemo(() => requests.map((request) => request.fromUid), [requests]);
-
   const excluded = useMemo(
-    () => [...friendUids, ...sentUids, ...requestFromUids],
-    [friendUids, sentUids, requestFromUids],
+    () => [
+      ...friends.map((friend) => friend.uid),
+      ...sent.map((request) => request.toUid),
+      ...requests.map((request) => request.fromUid),
+    ],
+    [friends, sent, requests],
   );
 
-  const results = useMemo(
-    () => users.filter((user) => !excluded.includes(user.uid)),
-    [users, excluded],
-  );
-
-  function openAdd(user = null) {
-    setModalUser(user);
-    setModalOpen(true);
-  }
-
-  async function handleRespond(requestId, nextStatus) {
+  async function run(action, done, failed) {
     setStatus(null);
     try {
-      await respondToRequest(requestId, nextStatus);
-      setStatus(nextStatus === 'accepted' ? 'Zahteva je sprejeta.' : 'Zahteva je zavrnjena.');
+      await action();
+      setStatus(done);
     } catch (error) {
-      console.error('Odgovor na zahtevo ni uspel:', error);
-      setStatus('Odgovor ni uspel. Poskusi znova.');
+      console.error(error);
+      setStatus(failed);
     }
   }
 
-  async function handleWithdraw(requestId) {
-    setStatus(null);
-    try {
-      await deleteFriendRequest(requestId);
-      setStatus('Zahteva je preklicana.');
-    } catch (error) {
-      console.error('Preklic zahteve ni uspel:', error);
-      setStatus('Zahteve ni bilo mogoče preklicati. Poskusi znova.');
-    }
-  }
-
-  async function handleRemove(friend) {
-    setStatus(null);
-    try {
-      await deleteFriendRequest(friend.requestId);
-      setStatus(`${friend.displayName} je odstranjen iz prijateljev.`);
-    } catch (error) {
-      console.error('Odstranjevanje prijatelja ni uspelo:', error);
-      setStatus('Prijatelja ni bilo mogoče odstraniti. Poskusi znova.');
-    }
-  }
+  const friendForms = { one: t('prijatelj'), two: t('prijatelja'), few: t('prijatelji'), other: t('prijateljev') };
 
   return (
-    <div className="max-w-3xl space-y-5">
-      <section className="rise flex items-center gap-4">
-        <span
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-rp-accent/25 bg-rp-accent/10 text-rp-accent"
-          aria-hidden="true"
-        >
-          <UsersIcon className="h-5 w-5" />
-        </span>
+    <div className="max-w-2xl space-y-8">
+      <header className="rise margin-rule flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-page text-rp-text">Prijatelji</h1>
-          <p className="mt-0.5 text-small text-rp-muted">
-            {countedNoun(friends.length, 'prijatelj', 'prijatelja', 'prijatelji', 'prijateljev')}
-            {userProfile?.friendCode && (
-              <> · tvoja koda <span className="mono text-rp-text">{userProfile.friendCode}</span></>
-            )}
-          </p>
+          <h1 className="text-page text-rp-text">{t('Prijatelji')}</h1>
+          <p className="mt-1 text-small text-rp-muted">{tn(friends.length, friendForms)}</p>
         </div>
-      </section>
+        <button type="button" onClick={() => setModalOpen(true)} className="btn btn-primary">
+          <PlusIcon className="h-4 w-4" />
+          {t('Dodaj prijatelja')}
+        </button>
+      </header>
 
       {status && (
-        <p className="text-small text-rp-subtle" role="status" aria-live="polite">
-          {status}
-        </p>
+        <p className="text-small text-rp-subtle" role="status" aria-live="polite">{status}</p>
       )}
 
       {requests.length > 0 && (
-        <Section title="Zahteve za prijateljstvo" badge={requests.length}>
-          <div>
+        <section aria-labelledby="requests-heading">
+          <h2 id="requests-heading" className="mb-2 text-subtitle text-rp-text">
+            {t('Želijo biti tvoji prijatelji')}
+          </h2>
+          <ul className="ledger">
             {requests.map((request) => (
-              <div key={request.id} className="ledger-row flex items-center justify-between gap-3 px-5 py-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <MiniAvatar name={request.fromName} tone="rose" />
-                  <span className="truncate text-body font-medium text-rp-text">{request.fromName}</span>
-                </div>
-                <div className="flex shrink-0 gap-2">
+              <li key={request.id} className="ledger-row flex flex-wrap items-center gap-3 py-2.5">
+                <Avatar name={request.fromName} />
+                <span className="min-w-0 flex-1 truncate text-body font-medium text-rp-text">{request.fromName}</span>
+                <span className="flex shrink-0 gap-2">
                   <button
                     type="button"
-                    onClick={() => handleRespond(request.id, 'accepted')}
-                    className="rounded-md bg-rp-success px-3 py-1.5 text-small font-semibold text-rp-canvas transition-opacity hover:opacity-90"
+                    onClick={() => run(
+                      () => respondToRequest(request.id, 'rejected'),
+                      t('Zahteva je zavrnjena.'),
+                      t('Odgovor ni uspel. Poskusi znova.'),
+                    )}
+                    className="btn btn-sm"
                   >
-                    Sprejmi
+                    {t('Zavrni')}
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleRespond(request.id, 'rejected')}
-                    className="rounded-md border border-rp-danger/30 px-3 py-1.5 text-small font-semibold text-rp-danger transition-colors hover:bg-rp-danger/10"
+                    onClick={() => run(
+                      () => respondToRequest(request.id, 'accepted'),
+                      t('{name} je zdaj tvoj prijatelj.', { name: request.fromName }),
+                      t('Odgovor ni uspel. Poskusi znova.'),
+                    )}
+                    className="btn btn-primary btn-sm"
                   >
-                    Zavrni
+                    {t('Sprejmi')}
                   </button>
-                </div>
-              </div>
+                </span>
+              </li>
             ))}
-          </div>
-        </Section>
+          </ul>
+        </section>
       )}
 
-      <Section title="Moji prijatelji" badge={friends.length}>
+      <section aria-labelledby="friends-heading">
+        <h2 id="friends-heading" className="sr-only">{t('Moji prijatelji')}</h2>
         {friends.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
-            <span
-              className="grid h-12 w-12 place-items-center rounded-lg border border-rp-line bg-rp-overlay text-rp-muted"
-              aria-hidden="true"
-            >
-              <UsersIcon className="h-6 w-6" />
-            </span>
-            <p className="text-body text-rp-muted">
-              Nimaš še prijateljev. Poišči sošolca po kodi ali po imenu.
-            </p>
-            <button type="button" onClick={() => openAdd()} className="btn btn-primary !py-2.5 !text-small">
-              Dodaj prijatelja
-            </button>
-          </div>
+          <EmptyState
+            icon={<UsersIcon className="h-5 w-5" />}
+            title={t('Še nimaš prijateljev')}
+            description={t('Dodaj sošolca s kodo, ki ti jo pošlje, ali po imenu.')}
+          />
         ) : (
-          <div>
+          <ul className="ledger">
             {friends.map((friend) => (
-              <div key={friend.uid} className="ledger-row flex items-center gap-3 px-5 py-3">
-                <MiniAvatar name={friend.displayName} />
-                <span className="min-w-0 flex-1 truncate text-body font-medium text-rp-text">
-                  {friend.displayName}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/chat?dm=${friend.uid}`)}
-                  className="flex shrink-0 items-center gap-1.5 btn btn-sm"
-                >
+              <li key={friend.uid} className="ledger-row flex items-center gap-3 py-2.5">
+                <Avatar name={friend.displayName} />
+                <span className="min-w-0 flex-1 truncate text-body font-medium text-rp-text">{friend.displayName}</span>
+                <button type="button" onClick={() => navigate(`/chat?dm=${friend.uid}`)} className="btn btn-sm shrink-0">
                   <ChatIcon className="h-4 w-4" />
-                  Pogovor
+                  {t('Piši')}
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleRemove(friend)}
-                  aria-label={`Odstrani ${friend.displayName} iz prijateljev`}
-                  title="Odstrani prijatelja"
-                  className="shrink-0 btn btn-icon hover:!text-rp-danger"
+                  onClick={() => {
+                    if (!window.confirm(t('Odstranim {name} iz prijateljev?', { name: friend.displayName }))) return;
+                    run(
+                      () => deleteFriendRequest(friend.requestId),
+                      t('{name} ni več med prijatelji.', { name: friend.displayName }),
+                      t('Prijatelja ni bilo mogoče odstraniti. Poskusi znova.'),
+                    );
+                  }}
+                  aria-label={t('Odstrani {name} iz prijateljev', { name: friend.displayName })}
+                  className="btn btn-icon shrink-0 border-transparent bg-transparent text-rp-muted hover:!text-rp-danger"
                 >
                   <TrashIcon className="h-4 w-4" />
                 </button>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
-      </Section>
+      </section>
 
-      <Section title="Najdi sošolca">
-        <div className="px-5 py-4">
-          <label className="relative block">
-            <span className="sr-only">Išči po imenu</span>
-            <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-rp-muted" />
-            <input
-              type="text"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Išči po imenu… (vsaj 2 znaka)"
-              className="field !pl-9"
-            />
-          </label>
-
-          <p className="mt-2 text-small text-rp-muted">
-            Našel več učencev z istim imenom? Vpiši njihovo kodo in Scribe poišče pravega.
-          </p>
-
-          <div className="ledger mt-3">
-            {search.trim().length >= 2 && results.length === 0 && (
-              <p className="px-3 py-3 text-small text-rp-muted">Ni zadetkov.</p>
-            )}
-            {results.map((user) => (
-              <div key={user.uid} className="ledger-row flex items-center gap-3 px-3 py-2.5">
-                <MiniAvatar name={user.displayName} tone="warn" size={32} />
-                <span className="min-w-0 flex-1 truncate text-body font-medium text-rp-text">
-                  {user.displayName || 'Učenec'}
-                </span>
+      {sent.length > 0 && (
+        <section aria-labelledby="sent-heading">
+          <h2 id="sent-heading" className="mb-2 text-small font-semibold text-rp-muted">{t('Še niso odgovorili')}</h2>
+          <ul className="ledger">
+            {sent.map((request) => (
+              <li key={request.id} className="ledger-row flex items-center gap-3 py-2">
+                <span className="min-w-0 flex-1 truncate text-body text-rp-subtle">{request.toName}</span>
                 <button
                   type="button"
-                  onClick={() => openAdd(user)}
-                  aria-label={`Dodaj ${user.displayName || 'učenca'} med prijatelje`}
-                  title="Dodaj prijatelja"
-                  className="btn btn-icon !h-8 !w-8"
+                  onClick={() => run(
+                    () => deleteFriendRequest(request.id),
+                    t('Zahteva je preklicana.'),
+                    t('Zahteve ni bilo mogoče preklicati. Poskusi znova.'),
+                  )}
+                  className="btn btn-sm shrink-0 border-transparent bg-transparent text-rp-muted"
                 >
-                  <PlusIcon className="h-4 w-4" />
+                  {t('Prekliči')}
                 </button>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
+        </section>
+      )}
 
-          <button
-            type="button"
-            onClick={() => openAdd()}
-            className="btn mt-4 w-full !py-2.5 !text-small"
-          >
-            <PlusIcon className="h-4 w-4" />
-            Dodaj s kodo
-          </button>
-        </div>
-
-        {sent.length > 0 && (
-          <div className="border-t border-rp-line px-5 py-4">
-            <p className="text-label text-rp-muted">Čaka na odziv</p>
-            <div className="mt-2">
-              {sent.map((request) => (
-                <div key={request.id} className="flex items-center gap-3 py-1.5">
-                  <span className="h-2 w-2 shrink-0 rounded-full bg-rp-warn" aria-hidden="true" />
-                  <span className="min-w-0 flex-1 truncate text-body text-rp-subtle">{request.toName}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleWithdraw(request.id)}
-                    className="shrink-0 rounded-md px-2.5 py-1 text-small font-semibold text-rp-muted transition-colors hover:bg-rp-danger/10 hover:text-rp-danger"
-                  >
-                    Preklici
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </Section>
-
-      <AddFriendModal
-        isOpen={modalOpen}
-        onClose={() => { setModalOpen(false); setModalUser(null); }}
-        initialUser={modalUser}
-        excludeUids={excluded}
-        onSent={() => setSearch('')}
-      />
+      <AddFriendModal isOpen={modalOpen} onClose={() => setModalOpen(false)} excludeUids={excluded} />
     </div>
   );
 }

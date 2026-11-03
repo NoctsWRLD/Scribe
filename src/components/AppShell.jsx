@@ -4,11 +4,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { ACCOUNT_LINKS, NAV_GROUPS, isPathActive } from '../navigation';
 import { useSeo } from '../hooks/useSeo';
 import { getPageTitle } from '../utils/pageTitles';
+import { useI18n } from '../i18n';
 import SideNav from './SideNav';
 import TopBar from './TopBar';
 import MobileTabBar from './MobileTabBar';
 import NavIcon from './NavIcon';
 import Logo from './Logo';
+import LanguageSelect from './LanguageSelect';
 import { LogOutIcon, XIcon } from './icons';
 
 function MoreSheet({ pathname, onClose }) {
@@ -16,6 +18,7 @@ function MoreSheet({ pathname, onClose }) {
   const closeRef = useRef(null);
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { t } = useI18n();
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -29,7 +32,7 @@ function MoreSheet({ pathname, onClose }) {
       }
       if (event.key !== 'Tab') return;
       const focusable = sheetRef.current?.querySelectorAll(
-        'a[href], button:not([disabled])',
+        'a[href], button:not([disabled]), select:not([disabled])',
       );
       if (!focusable?.length) return;
       const first = focusable[0];
@@ -63,7 +66,7 @@ function MoreSheet({ pathname, onClose }) {
         ref={sheetRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Meni"
+        aria-label={t('Meni')}
         className="modal-pop absolute inset-y-0 left-0 flex w-[min(20rem,88vw)] flex-col border-r border-rp-line bg-rp-panel"
       >
         <div className="flex h-16 items-center justify-between border-b border-rp-line px-4">
@@ -75,17 +78,17 @@ function MoreSheet({ pathname, onClose }) {
             ref={closeRef}
             type="button"
             onClick={onClose}
-            aria-label="Zapri meni"
+            aria-label={t('Zapri meni')}
             className="btn btn-icon !h-9 !w-9"
           >
             <XIcon className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-5">
+        <div className="flex-1 overflow-y-auto px-3 py-4">
           {NAV_GROUPS.map((group) => (
             <div key={group.label} className="mb-5">
-              <p className="mb-1.5 text-label text-rp-muted">{group.label}</p>
+              <p className="mb-1.5 px-3 text-small font-semibold text-rp-muted">{t(group.label)}</p>
               <ul className="grid gap-0.5">
                 {group.items.map((item) => {
                   const active = isPathActive(pathname, item.to);
@@ -95,14 +98,20 @@ function MoreSheet({ pathname, onClose }) {
                         to={item.to}
                         onClick={onClose}
                         aria-current={active ? 'page' : undefined}
-                        className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-body font-medium transition-colors ${
+                        className={`relative flex items-center gap-3 rounded-sm px-3 py-2.5 text-body transition-colors ${
                           active
-                            ? 'bg-rp-accent/[.12] text-rp-accent'
-                            : 'text-rp-subtle hover:bg-rp-overlay hover:text-rp-text'
+                            ? 'font-semibold text-rp-accent'
+                            : 'font-medium text-rp-subtle hover:bg-rp-overlay hover:text-rp-text'
                         }`}
                       >
+                        {active && (
+                          <span
+                            className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-rp-accent"
+                            aria-hidden="true"
+                          />
+                        )}
                         <NavIcon name={item.icon} className="h-[18px] w-[18px] shrink-0" />
-                        {item.label}
+                        {t(item.label)}
                       </NavLink>
                     </li>
                   );
@@ -117,19 +126,22 @@ function MoreSheet({ pathname, onClose }) {
                 key={link.to}
                 to={link.to}
                 onClick={onClose}
-                className="flex items-center gap-3 rounded-md px-3 py-2.5 text-body font-medium text-rp-subtle transition-colors hover:bg-rp-overlay hover:text-rp-text"
+                className="flex items-center gap-3 rounded-sm px-3 py-2.5 text-body font-medium text-rp-subtle transition-colors hover:bg-rp-overlay hover:text-rp-text"
               >
                 <NavIcon name={link.icon} className="h-[18px] w-[18px] shrink-0" />
-                {link.label}
+                {t(link.label)}
               </NavLink>
             ))}
+            <div className="mt-2 px-3">
+              <LanguageSelect />
+            </div>
             <button
               type="button"
               onClick={handleLogout}
-              className="btn btn-danger w-full !justify-start !px-3 !py-2.5 !text-body"
+              className="btn btn-danger mt-2 w-full !justify-start !px-3 !py-2.5 !text-body"
             >
               <LogOutIcon className="h-[18px] w-[18px] shrink-0" />
-              Odjava
+              {t('Odjava')}
             </button>
           </div>
         </div>
@@ -141,8 +153,10 @@ function MoreSheet({ pathname, onClose }) {
 export default function AppShell({ children }) {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { t } = useI18n();
+  const isChat = location.pathname === '/chat';
 
-  useSeo({ title: getPageTitle(location.pathname), path: location.pathname });
+  useSeo({ title: t(getPageTitle(location.pathname)), path: location.pathname });
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -157,22 +171,24 @@ export default function AppShell({ children }) {
     <div className="min-h-dvh bg-rp-canvas">
       <a
         href="#main-content"
-        className="sr-only z-[100] rounded-md bg-rp-accent px-4 py-2 font-semibold text-rp-accent-ink focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+        className="sr-only z-[100] rounded-sm bg-rp-accent px-4 py-2 font-semibold text-rp-accent-ink focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
       >
-        Preskoči na vsebino
+        {t('Preskoči na vsebino')}
       </a>
 
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-rp-line bg-rp-panel lg:block">
         <SideNav pathname={location.pathname} />
       </aside>
 
-      <div className="flex min-h-dvh flex-col lg:pl-60">
+      {/* The chat is a fixed-height screen: the conversation scrolls, the
+          composer stays above the tab bar. Every other page scrolls whole. */}
+      <div className={`flex flex-col lg:pl-60 ${isChat ? 'h-dvh overflow-hidden' : 'min-h-dvh'}`}>
         <TopBar onOpenMenu={() => setMenuOpen(true)} />
         <main
           id="main-content"
           className={
-            location.pathname === '/chat'
-              ? 'mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col px-0 pb-0 pt-0 md:px-6 lg:pt-0'
+            isChat
+              ? 'mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col pb-[calc(3.9rem+env(safe-area-inset-bottom))] lg:pb-0'
               : 'mx-auto w-full max-w-6xl flex-1 px-4 pb-28 pt-6 md:px-6 lg:pb-14 lg:pt-9'
           }
         >

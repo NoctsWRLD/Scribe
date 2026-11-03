@@ -29,13 +29,20 @@ export function useMessages(chatId) {
 
   useEffect(() => {
     if (!chatId) return undefined;
+    // The newest 200, not the oldest: an ascending query with a limit stops
+    // showing new messages once a channel passes the limit. The page reads
+    // top to bottom, so the result is reversed after it arrives.
     const q = query(
       collection(db, 'chats', chatId, 'messages'),
-      orderBy('timestamp', 'asc'),
+      orderBy('timestamp', 'desc'),
       limit(200)
     );
     const unsub = onSnapshot(q,
-      (snap) => setMessageState({ chatId, messages: snap.docs.map((d) => ({ id: d.id, ...d.data() })), loading: false }),
+      (snap) => setMessageState({
+        chatId,
+        messages: snap.docs.map((d) => ({ id: d.id, ...d.data() })).reverse(),
+        loading: false,
+      }),
       (err) => { console.error('useMessages:', err); setMessageState({ chatId, messages: [], loading: false }); }
     );
     return unsub;
@@ -75,7 +82,8 @@ export function useAllUsers(searchTerm = '') {
     return unsub;
   }, [currentUser, normalizedSearch]);
 
-  return { users };
+  // A term that became too short must not keep showing the last results.
+  return { users: normalizedSearch.length >= 2 ? users : [] };
 }
 
 // ─── Friends (accepted requests) ──────────────────────────────────────────────

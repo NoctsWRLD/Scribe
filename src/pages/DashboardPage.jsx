@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSubjects, useTasks } from '../hooks/useFirestore';
 import ErrorState from '../components/ErrorState';
 import { useFlashcards } from '../hooks/useStudy';
-import TaskCard from '../components/TaskCard';
+import TaskLedger from '../components/TaskLedger';
 import TaskModal from '../components/TaskModal';
 import Skeleton from '../components/Skeleton';
 import FocusTimer from '../components/FocusTimer';
@@ -16,15 +16,16 @@ import StatTile from '../components/StatTile';
 import EmptyState from '../components/EmptyState';
 import { getSubjectColor } from '../utils/colors';
 import { buildWeekRail } from '../utils/rail';
-import { formatSlovenianDate, getHourInSlovenia, getSlovenianDateKey } from '../utils/dates';
-import { countedNoun } from '../utils/slovenian';
+import { formatDate, getHourInSlovenia, getSlovenianDateKey } from '../utils/dates';
+import { useI18n } from '../i18n';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const { t, tn, localeTag } = useI18n();
   const [now, setNow] = useState(() => new Date());
   const { subjects, loading: subjectsLoading, error: subjectsError } = useSubjects();
-  const { tasks, loading: tasksLoading, error: tasksError, addTask, updateTask, toggleTask, deleteTask } = useTasks();
+  const { tasks, loading: tasksLoading, error: tasksError, addTask, updateTask, deleteTask, setTasksCompleted } = useTasks();
   const { cards } = useFlashcards();
   const [modalOpen, setModalOpen] = useState(false);
   const [editTask, setEditTask] = useState(null);
@@ -56,9 +57,22 @@ export default function DashboardPage() {
   const rail = useMemo(() => buildWeekRail(tasks, today), [tasks, today]);
 
   const hour = getHourInSlovenia(now);
-  const greeting = hour < 12 ? 'Dobro jutro' : hour < 18 ? 'Dober dan' : 'Dober večer';
-  const dateLabel = formatSlovenianDate(today, { weekday: 'long', day: 'numeric', month: 'long' });
-  const displayName = currentUser?.displayName?.trim().split(/\s+/)[0] || 'učenec';
+  const greeting = hour < 12 ? t('Dobro jutro') : hour < 18 ? t('Dober dan') : t('Dober večer');
+  const dateLabel = formatDate(today, { weekday: 'long', day: 'numeric', month: 'long' }, localeTag);
+  const displayName = currentUser?.displayName?.trim().split(/\s+/)[0] || t('učenec');
+
+  const subjectTaskForms = {
+    one: t('naloga'),
+    two: t('nalogi'),
+    few: t('naloge'),
+    other: t('nalog'),
+  };
+  const cardForms = {
+    one: t('kartica'),
+    two: t('kartici'),
+    few: t('kartice'),
+    other: t('kartic'),
+  };
 
   function openTaskModal() {
     if (subjectsLoading) return;
@@ -73,31 +87,31 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <section className="rise margin-rule" aria-labelledby="dash-title">
-        <p className="text-small text-rp-muted lg:hidden">{dateLabel}</p>
+        <p className="mono text-small text-rp-muted lg:hidden">{dateLabel}</p>
         <h1 id="dash-title" className="mt-2 max-w-2xl text-page text-rp-text">
           {greeting}, {displayName}.
         </h1>
         <p className="mt-2.5 max-w-xl text-body text-rp-muted">
           {pending.length === 0
-            ? 'Nič odprtega. Dodaj naslednjo stvar ali ponovi kartice.'
-            : `${countedNoun(pending.length, 'odprta naloga', 'odprti nalogi', 'odprte naloge', 'odprtih nalog')} — začni z eno in nameni ji 25 minut fokusa.`}
+            ? t('Nič odprtega. Dodaj naslednjo stvar ali ponovi kartice.')
+            : t('Izberi eno nalogo in ji nameni 25 minut fokusa.')}
         </p>
 
         <StudyRail
           className="mt-6 max-w-2xl"
           segments={rail}
-          label="Učni pas tedna"
-          caption="Učni pas tedna"
+          label={t('Učni pas tedna')}
+          caption={t('Učni pas tedna')}
         />
 
         <div className="mt-6 flex flex-wrap gap-2">
           <button type="button" onClick={openTaskModal} disabled={subjectsLoading} className="btn btn-primary disabled:opacity-60">
-            Nova naloga
+            {t('Nova naloga')}
           </button>
           <Link to="/flashcards" className="btn">
-            Ponovi kartice{dueCards > 0 ? ` (${dueCards})` : ''}
+            {t('Ponovi kartice')}{dueCards > 0 ? ` (${dueCards})` : ''}
           </Link>
-          <Link to="/exams" className="btn">Preverjanja</Link>
+          <Link to="/exams" className="btn">{t('Preverjanja')}</Link>
         </div>
       </section>
 
@@ -107,46 +121,41 @@ export default function DashboardPage() {
 
       <section
         className="rise grid grid-cols-2 divide-x divide-y divide-rp-line border-y border-rp-line py-5 sm:grid-cols-4 sm:divide-y-0"
-        aria-label="Pregled napredka"
+        aria-label={t('Pregled napredka')}
       >
-        <StatTile className="px-4 first:pl-0 sm:first:pl-0" value={pending.length} label="odprtih nalog" />
-        <StatTile className="px-4" value={dueToday} label="zapade danes" tone="text-rp-accent" />
-        <StatTile className="px-4 sm:pl-4" value={overdue} label="zamujenih" tone={overdue > 0 ? 'text-rp-danger' : 'text-rp-text'} />
-        <StatTile className="px-4" value={`${completion}%`} label="narejeno" tone="text-rp-success" />
+        <StatTile className="px-4 first:pl-0 sm:first:pl-0" value={pending.length} label={t('odprtih nalog')} />
+        <StatTile className="px-4" value={dueToday} label={t('zapade danes')} tone="text-rp-accent" />
+        <StatTile className="px-4 sm:pl-4" value={overdue} label={t('zamujenih')} tone={overdue > 0 ? 'text-rp-danger' : 'text-rp-text'} />
+        <StatTile className="px-4" value={`${completion}%`} label={t('narejeno')} tone="text-rp-success" />
       </section>
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(17rem,.85fr)]">
         <section className="min-w-0" aria-labelledby="upcoming-heading">
           <div className="mb-3 flex items-baseline justify-between gap-3">
-            <h2 id="upcoming-heading" className="text-title text-rp-text">Naslednje naloge</h2>
-            <Link to="/tasks" className="link-signal">Vse naloge</Link>
+            <h2 id="upcoming-heading" className="text-title text-rp-text">{t('Naslednje naloge')}</h2>
+            <Link to="/tasks" className="link-signal">{t('Vse naloge')}</Link>
           </div>
           {tasksLoading ? (
-            <div className="card p-4"><Skeleton lines={4} /></div>
+            <Skeleton lines={4} />
           ) : upcoming.length ? (
-            <div className="ledger">
-              {upcoming.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  subject={subjects.find((subject) => subject.id === task.subjectId) || null}
-                  onToggle={toggleTask}
-                  onEdit={(value) => { setEditTask(value); setModalOpen(true); }}
-                  onDelete={(value) => {
-                    if (window.confirm(`Izbrišem nalogo »${value.title}«?`)) deleteTask(value.id);
-                  }}
-                />
-              ))}
-            </div>
+            <TaskLedger
+              tasks={upcoming}
+              subjects={subjects}
+              onEdit={(value) => { setEditTask(value); setModalOpen(true); }}
+              onDelete={(value) => {
+                if (window.confirm(t('Izbrišem nalogo »{title}«?', { title: value.title }))) deleteTask(value.id);
+              }}
+              onSetCompleted={setTasksCompleted}
+            />
           ) : (
             <EmptyState
               compact
-              title="Prazno. In to je v redu."
-              description="Dodaj prvo nalogo za ta teden ali ponovi kartice."
+              title={t('Prazno. In to je v redu.')}
+              description={t('Dodaj prvo nalogo za ta teden ali ponovi kartice.')}
               action={
-                <div className="flex flex-wrap justify-center gap-2">
-                  <button type="button" onClick={openTaskModal} className="btn btn-primary !py-2.5 !text-small">Dodaj nalogo</button>
-                  <Link to="/flashcards" className="btn !py-2.5 !text-small">Kartice</Link>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={openTaskModal} className="btn btn-primary !py-2.5 !text-small">{t('Dodaj nalogo')}</button>
+                  <Link to="/flashcards" className="btn !py-2.5 !text-small">{t('Kartice')}</Link>
                 </div>
               }
             />
@@ -163,20 +172,20 @@ export default function DashboardPage() {
 
       <section aria-labelledby="subjects-heading">
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 id="subjects-heading" className="text-title text-rp-text">Predmeti</h2>
-          <Link to="/subjects" className="link-signal">Uredi</Link>
+          <h2 id="subjects-heading" className="text-title text-rp-text">{t('Predmeti')}</h2>
+          <Link to="/subjects" className="link-signal">{t('Uredi')}</Link>
         </div>
         {subjectsLoading ? (
-          <div className="card p-4"><Skeleton lines={2} /></div>
+          <Skeleton lines={2} />
         ) : subjects.length === 0 ? (
           <EmptyState
             compact
-            title="Dodaj prvi predmet"
-            description="Dodaj prvi predmet, da razvrstiš naloge, preverjanja in kartice."
-            action={<Link to="/subjects" className="btn btn-primary !py-2.5 !text-small">Odpri predmete</Link>}
+            title={t('Dodaj prvi predmet')}
+            description={t('Dodaj prvi predmet, da razvrstiš naloge, preverjanja in kartice.')}
+            action={<Link to="/subjects" className="btn btn-primary !py-2.5 !text-small">{t('Odpri predmete')}</Link>}
           />
         ) : (
-          <div className="flex gap-3 overflow-x-auto pb-2">
+          <ul className="ledger grid sm:grid-cols-2 sm:gap-x-8">
             {subjects.slice(0, 6).map((subject) => {
               const color = getSubjectColor(subject.colorIndex);
               const subjectTasks = tasks.filter((task) => task.subjectId === subject.id);
@@ -184,43 +193,30 @@ export default function DashboardPage() {
               const progress = subjectTasks.length ? Math.round((done / subjectTasks.length) * 100) : 0;
               const subjectCards = cards.filter((card) => card.subjectId === subject.id);
               return (
-                <Link
-                  key={subject.id}
-                  to="/subjects"
-                  className="card-hover w-52 shrink-0 rounded-t-md border border-b-0 border-rp-line bg-rp-raised p-4 transition-colors hover:border-rp-line-strong"
-                  style={{ borderTop: `3px solid ${color.colorVar}` }}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span
-                      className={`grid h-8 w-8 shrink-0 place-items-center rounded-xs text-small font-bold ${color.bg} ${color.text} ${color.border} border`}
-                      aria-hidden="true"
-                    >
-                      {subject.name?.[0]?.toUpperCase() || '•'}
+                <li key={subject.id} className="ledger-row">
+                <Link to={`/tasks?subject=${subject.id}`} className="block py-3 pr-1">
+                  <span className="flex items-baseline gap-2.5">
+                    <span className="h-2 w-2 shrink-0 translate-y-[-1px] rounded-full" style={{ backgroundColor: color.colorVar }} aria-hidden="true" />
+                    <span className="min-w-0 flex-1 truncate text-body font-semibold text-rp-text">{subject.name}</span>
+                    <span className="mono shrink-0 text-small text-rp-muted">
+                      {tn(subjectTasks.length, subjectTaskForms)}, {tn(subjectCards.length, cardForms)}
                     </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-body font-semibold text-rp-text">{subject.name}</span>
-                      <span className="block truncate text-small text-rp-muted">
-                        {countedNoun(subjectTasks.length, 'naloga', 'nalogi', 'naloge', 'nalog')}
-                      </span>
-                    </span>
-                  </div>
+                  </span>
                   <div
-                    className="mt-3 h-1 overflow-hidden rounded-full bg-rp-fill"
+                    className="mt-2 h-1 overflow-hidden rounded-full bg-rp-fill"
                     role="progressbar"
                     aria-valuenow={progress}
                     aria-valuemin={0}
                     aria-valuemax={100}
-                    aria-label={`Napredek pri predmetu ${subject.name}`}
+                    aria-label={t('Napredek pri predmetu {name}', { name: subject.name })}
                   >
                     <div className="h-full rounded-full" style={{ width: `${progress}%`, backgroundColor: color.colorVar }} />
                   </div>
-                  <p className="mt-2 text-small text-rp-muted">
-                    {countedNoun(subjectCards.length, 'kartica', 'kartici', 'kartice', 'kartic')}
-                  </p>
                 </Link>
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
       </section>
 
