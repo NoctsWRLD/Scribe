@@ -11,6 +11,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   query,
   serverTimestamp,
@@ -25,6 +26,7 @@ import {
   verifyBeforeUpdateEmail,
 } from 'firebase/auth';
 import { db } from '../firebaseDb';
+import { validatePassword } from '../utils/password';
 
 /** Collections that belong to one account and are deleted with it. */
 const OWNED_COLLECTIONS = ['subjects', 'tasks', 'exams', 'flashcards', 'focusSessions'];
@@ -43,6 +45,12 @@ export async function changeAccountEmail(user, password, newEmail) {
 
 /** Change the password. */
 export async function changeAccountPassword(user, password, newPassword) {
+  // The same rule as registration; Firebase alone would accept 6 characters.
+  if (!validatePassword(newPassword).ok) {
+    const error = new Error('Password too short');
+    error.code = 'auth/weak-password';
+    throw error;
+  }
   await reauthenticate(user, password);
   await updatePassword(user, newPassword);
 }
@@ -171,13 +179,21 @@ export async function importAccountData(uid, data) {
 
 /**
  * Remove every document that belongs to the account: its study data, its
- * requests, its own messages and its profile.
+ * requests, its own messages, its friend code and its profile.
  *
  * `chatIds` are the conversations the account takes part in. A group query
  * over every message cannot be proved against the rules, so the chats are
  * visited one by one.
+ *
+ * Every step is attempted before anything is reported, and a failure that can
+ * still be retried throws: the login is only removed once the data is gone,
+ * because a document whose owner no longer exists can never be deleted again.
  */
 export async function deleteAccountData(uid, chatIds = []) {
+  // Read the code before the profile that names it is deleted.
+  const profile = await getDoc(doc(db, 'users', uid));
+  const friendCode = profile.exists() ? profile.data()?.friendCode : null;
+
   for (const name of OWNED_COLLECTIONS) {
     const snapshot = await getDocs(query(collection(db, name), where('uid', '==', uid)));
     await Promise.all(snapshot.docs.map((document) => deleteDoc(document.ref)));
@@ -194,20 +210,38 @@ export async function deleteAccountData(uid, chatIds = []) {
   await Promise.all(incoming.docs.map((document) => deleteDoc(document.ref)));
 
   // Only the messages this account wrote are removed — the other person's
-  // messages stay with them.
+  // messages stay with them. A channel the account never joined answers with
+  // permission-denied; that is not a failure, there is nothing there to remove.
+  const failedChats = [];
   for (const chatId of chatIds) {
+    if (!chatId) continue;
     try {
       const messages = await getDocs(
         query(collection(db, 'chats', chatId, 'messages'), where('senderId', '==', uid)),
       );
       await Promise.all(messages.docs.map((document) => deleteDoc(document.ref)));
     } catch (error) {
-      console.warn(`Sporočila v klepetu ${chatId} n bila izbrisana:`, error);
+      if (error?.code !== 'permission-denied') failedChats.push(chatId);
+      else console.warn(`Sporočil v klepetu ${chatId} ni bilo mogoče prebrati:`, error);
     }
   }
 
-  await deleteDoc(doc(db, 'publicProfiles', uid)).catch(() => {});
-  await deleteDoc(doc(db, 'users', uid)).catch(() => {});
+  if (failedChats.length) {
+    const error = new Error('Nekaterih sporočil ni bilo mogoče izbrisati.');
+    error.code = 'app/account-delete-messages';
+    throw error;
+  }
+
+  if (friendCode) {
+    // The code points at an account that is about to stop existing, and no
+    // one could ever reclaim it afterwards.
+    await deleteDoc(doc(db, 'userCodes', friendCode)).catch((error) => {
+      console.warn('Kode prijatelja ni bilo mogoče izbrisati:', error);
+    });
+  }
+
+  await deleteDoc(doc(db, 'publicProfiles', uid));
+  await deleteDoc(doc(db, 'users', uid));
 }
 
 /**
@@ -215,6 +249,14 @@ export async function deleteAccountData(uid, chatIds = []) {
  * cannot be removed, the data is already gone and the error says so.
  */
 export async function deleteAccount(user, password, chatIds = []) {
+  const hasPassword = user?.providerData?.some((provider) => provider.providerId === 'password');
+  if (hasPassword && !password) {
+    // Deleting the login needs a recent sign-in, so the data must not go
+    // first: without the password the account could not be removed at all.
+    const error = new Error('Za brisanje računa je potrebno geslo.');
+    error.code = 'app/account-delete-no-password';
+    throw error;
+  }
   if (password) await reauthenticate(user, password);
   await deleteAccountData(user.uid, chatIds);
   await deleteUser(user);

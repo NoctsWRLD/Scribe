@@ -18,10 +18,11 @@ import { generateCode, isValidCode, normalizeCode } from '../utils/friendCode';
  * owns it.
  */
 
-/** Is there already a document for this code? */
-async function codeExists(code) {
+/** Who owns this code document, if anyone? `null` means the code is unused. */
+async function codeOwner(code) {
   const snapshot = await getDoc(doc(db, 'userCodes', code));
-  return snapshot.exists();
+  if (!snapshot.exists()) return null;
+  return snapshot.data()?.uid || null;
 }
 
 /** Write the code into the user's own document, creating it when needed. */
@@ -50,17 +51,21 @@ async function storeCodeInProfile(uid, code, profile) {
  */
 export async function ensureFriendCode(uid, currentCode, profile) {
   if (currentCode && isValidCode(currentCode)) {
-    // The code document may be missing after an interrupted write.
-    if (!(await codeExists(currentCode))) {
+    const owner = await codeOwner(currentCode);
+    // The profile may hold a code that was written before this account had a
+    // code document, or one that belongs to someone else. Only the first case
+    // is repaired; the second one gets the account a code of its own.
+    if (owner === uid) return currentCode;
+    if (owner === null) {
       await storeCodeInProfile(uid, currentCode, profile);
       await setDoc(doc(db, 'userCodes', currentCode), { uid, createdAt: serverTimestamp() });
+      return currentCode;
     }
-    return currentCode;
   }
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const code = generateCode();
-    if (await codeExists(code)) continue;
+    if ((await codeOwner(code)) !== null) continue;
 
     // The profile knows the code first, so a half-finished write never leaves
     // an account without a usable code.
@@ -71,7 +76,7 @@ export async function ensureFriendCode(uid, currentCode, profile) {
     const stored = (await getDoc(doc(db, 'users', uid))).data()?.friendCode;
     const effective = stored && isValidCode(stored) ? stored : code;
 
-    if (!(await codeExists(effective))) {
+    if ((await codeOwner(effective)) === null) {
       await setDoc(doc(db, 'userCodes', effective), { uid, createdAt: serverTimestamp() });
     }
     return effective;
@@ -87,7 +92,7 @@ export async function ensureFriendCode(uid, currentCode, profile) {
 export async function regenerateFriendCode(uid, previousCode, profile) {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const code = generateCode();
-    if (await codeExists(code)) continue;
+    if ((await codeOwner(code)) !== null) continue;
 
     await storeCodeInProfile(uid, code, profile);
     await setDoc(doc(db, 'userCodes', code), { uid, createdAt: serverTimestamp() });

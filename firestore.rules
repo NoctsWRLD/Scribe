@@ -20,9 +20,23 @@ service cloud.firestore {
       return value in ['noc', 'dnevnik', 'tabla', 'tabla-temna'];
     }
 
+    // The interface languages. The legal pages stay Slovenian, but the
+    // preference itself is still one of these five ids.
+    function validLocale(value) {
+      return value in ['sl', 'en', 'de', 'it', 'hr'];
+    }
+
     // Six characters from an unambiguous alphabet.
     function validFriendCode(value) {
       return value is string && value.matches('^[A-HJKMNP-Z2-9]{6}$');
+    }
+
+    // A code may be written into a profile only when nobody else already owns
+    // it. Without this, an account could display a classmate's code as its own
+    // and send everyone who types it to the wrong person.
+    function friendCodeIsFreeOrOwned(code) {
+      return !exists(/databases/$(database)/documents/userCodes/$(code))
+        || get(/databases/$(database)/documents/userCodes/$(code)).data.uid == request.auth.uid;
     }
 
     // Study preferences are a small map with a fixed set of keys.
@@ -59,7 +73,7 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if owns(uid);
       allow create: if owns(uid)
-        && request.resource.data.keys().hasOnly(['displayName', 'email', 'school', 'photoURL', 'createdAt', 'theme', 'friendCode', 'preferences'])
+        && request.resource.data.keys().hasOnly(['displayName', 'email', 'school', 'photoURL', 'createdAt', 'theme', 'friendCode', 'preferences', 'locale'])
         && request.resource.data.keys().hasAll(['displayName', 'email', 'school', 'photoURL', 'createdAt'])
         && request.resource.data.displayName is string
         && request.resource.data.displayName.size() <= 60
@@ -70,17 +84,25 @@ service cloud.firestore {
         && safeImageUrl(request.resource.data.photoURL)
         && request.resource.data.createdAt == request.time
         && (!('theme' in request.resource.data) || validTheme(request.resource.data.theme))
-        && (!('friendCode' in request.resource.data) || validFriendCode(request.resource.data.friendCode))
+        && (!('locale' in request.resource.data) || validLocale(request.resource.data.locale))
+        && (!('friendCode' in request.resource.data) || (
+          validFriendCode(request.resource.data.friendCode)
+          && friendCodeIsFreeOrOwned(request.resource.data.friendCode)
+        ))
         && (!('preferences' in request.resource.data) || validPreferences(request.resource.data.preferences));
       allow update: if owns(uid)
-        && request.resource.data.keys().hasOnly(['displayName', 'email', 'school', 'photoURL', 'createdAt', 'theme', 'friendCode', 'preferences'])
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'school', 'theme', 'friendCode', 'preferences'])
+        && request.resource.data.keys().hasOnly(['displayName', 'email', 'school', 'photoURL', 'createdAt', 'theme', 'friendCode', 'preferences', 'locale'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'school', 'theme', 'friendCode', 'preferences', 'locale'])
         && request.resource.data.displayName is string
         && request.resource.data.displayName.size() <= 60
         && request.resource.data.school is string
         && request.resource.data.school.size() <= 120
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['theme']) || validTheme(request.resource.data.theme))
-        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['friendCode']) || validFriendCode(request.resource.data.friendCode))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['locale']) || validLocale(request.resource.data.locale))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['friendCode']) || (
+          validFriendCode(request.resource.data.friendCode)
+          && friendCodeIsFreeOrOwned(request.resource.data.friendCode)
+        ))
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['preferences']) || validPreferences(request.resource.data.preferences));
       allow delete: if owns(uid);
     }

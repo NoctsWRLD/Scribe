@@ -7,8 +7,9 @@ import { useExams, useFlashcards, useFocusSessions } from '../hooks/useStudy';
 import { useFriends, useFriendCode, getDmChatId } from '../hooks/useChat';
 import SettingsSection from '../components/settings/SettingsSection';
 import DeleteAccountModal from '../components/settings/DeleteAccountModal';
+import LanguageSelect from '../components/LanguageSelect';
 import { THEMES } from '../utils/themes';
-import { getSlovenianDateKey } from '../utils/dates';
+import { formatDate, getSlovenianDateKey } from '../utils/dates';
 import {
   DEFAULT_PREFERENCES,
   FOCUS_OPTIONS,
@@ -17,50 +18,47 @@ import {
   normalizePreferences,
 } from '../utils/preferences';
 import { authErrorMessage } from '../utils/authErrors';
-import { CheckIcon, CopyIcon, MoonIcon, SunIcon } from '../components/icons';
-import { countedNoun } from '../utils/slovenian';
+import { schoolChatId, subjectChatId } from '../utils/chatChannels';
+import { MIN_PASSWORD_LENGTH } from '../utils/password';
+import { useI18n } from '../i18n';
 
-function Toggle({ title, description, checked, onChange }) {
+function Toggle({ id, title, description, checked, onChange }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-rp-line py-4 last:border-0 last:pb-0">
+    <div className="flex items-center justify-between gap-4 border-t border-rp-line py-4">
       <div>
-        <h3 className="text-body font-semibold text-rp-text">{title}</h3>
-        <p className="mt-1 max-w-lg text-small leading-5 text-rp-muted">{description}</p>
+        <p id={`${id}-label`} className="text-body font-semibold text-rp-text">{title}</p>
+        <p id={`${id}-hint`} className="mt-0.5 max-w-lg text-small text-rp-muted">{description}</p>
       </div>
       <button
         type="button"
         role="switch"
-        aria-label={title}
+        aria-labelledby={`${id}-label`}
+        aria-describedby={`${id}-hint`}
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-          checked ? 'bg-rp-accent' : 'bg-rp-line-strong'
-        }`}
+        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${checked ? 'bg-rp-mark' : 'bg-rp-line-strong'}`}
       >
         <span
-          className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-rp-raised transition-transform ${
-            checked ? 'translate-x-5' : 'translate-x-0'
-          }`}
+          className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-rp-raised transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`}
         />
       </button>
     </div>
   );
 }
 
-function Note({ tone = 'muted', children }) {
-  const tones = {
-    muted: 'text-rp-muted',
-    good: 'text-rp-success',
-    bad: 'text-rp-danger',
-  };
+/** A status line. Its tone is data, never guessed from the wording. */
+function Note({ note }) {
+  if (!note) return null;
+  const tones = { good: 'text-rp-success', bad: 'text-rp-danger', muted: 'text-rp-muted' };
   return (
-    <p className={`mt-3 text-small leading-5 ${tones[tone]}`} role="status" aria-live="polite">
-      {children}
+    <p className={`mt-3 text-small ${tones[note.tone] || tones.muted}`} role="status" aria-live="polite">
+      {note.text}
     </p>
   );
 }
 
 export default function SettingsPage() {
+  const { t, tn, localeTag } = useI18n();
   const {
     currentUser,
     userProfile,
@@ -103,7 +101,6 @@ export default function SettingsPage() {
   const fileInputRef = useRef(null);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteNote, setDeleteNote] = useState(null);
 
   useEffect(() => {
     if (userProfile?.school !== undefined) setSchool(userProfile.school);
@@ -117,14 +114,23 @@ export default function SettingsPage() {
     if (currentUser?.displayName) setDisplayName(currentUser.displayName);
   }, [currentUser?.displayName]);
 
-  async function handleProfileSave() {
+  const good = (text) => ({ tone: 'good', text });
+  const bad = (text) => ({ tone: 'bad', text });
+
+  async function handleProfileSave(event) {
+    event.preventDefault();
     setProfileNote(null);
+    const name = displayName.trim();
+    if (!name) {
+      setProfileNote(bad(t('Vpiši ime, ki ga vidijo sošolci.')));
+      return;
+    }
     try {
-      await updateUserProfile({ displayName: displayName.trim(), school: school.trim() });
-      setProfileNote('Spremembe so shranjene.');
+      await updateUserProfile({ displayName: name.slice(0, 60), school: school.trim().slice(0, 120) });
+      setProfileNote(good(t('Spremembe so shranjene.')));
     } catch (error) {
       console.error('Shranjevanje profila ni uspelo:', error);
-      setProfileNote('Profila ni bilo mogoče shraniti. Poskusi znova.');
+      setProfileNote(bad(t('Profila ni bilo mogoče shraniti. Poskusi znova.')));
     }
   }
 
@@ -133,11 +139,11 @@ export default function SettingsPage() {
     setEmailNote(null);
     try {
       await changeEmail(newEmail, emailPassword);
-      setEmailNote('Na novo e-pošto je poslana potrditev. Odpri jo, da spremembo potrdiš.');
+      setEmailNote(good(t('Na novi naslov je poslana povezava. Odpri jo, da spremembo potrdiš.')));
       setNewEmail('');
       setEmailPassword('');
     } catch (error) {
-      setEmailNote(authErrorMessage(error));
+      setEmailNote(bad(t(authErrorMessage(error))));
     }
   }
 
@@ -146,11 +152,11 @@ export default function SettingsPage() {
     setPasswordNote(null);
     try {
       await changePassword(newPassword, passwordCurrent);
-      setPasswordNote('Geslo je spremenjeno.');
+      setPasswordNote(good(t('Geslo je spremenjeno.')));
       setNewPassword('');
       setPasswordCurrent('');
     } catch (error) {
-      setPasswordNote(authErrorMessage(error));
+      setPasswordNote(bad(t(authErrorMessage(error))));
     }
   }
 
@@ -159,22 +165,22 @@ export default function SettingsPage() {
     try {
       await navigator.clipboard.writeText(friendCode);
       setCopied(true);
-      setCodeNote('Koda je kopirana.');
       window.setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       console.error('Kopiranje kode ni uspelo:', error);
-      setCodeNote(`Kodo zapiši ročno: ${friendCode}`);
+      setCodeNote({ tone: 'muted', text: t('Kopiranje ni uspelo. Kodo prepiši ročno: {code}', { code: friendCode }) });
     }
   }
 
   async function handleRegenerateCode() {
+    if (!window.confirm(t('Ustvarim novo kodo? Stara takoj neha delovati.'))) return;
     setCodeNote(null);
     try {
       await regenerate();
-      setCodeNote('Nova koda je ustvarjena. Stara ne deluje več.');
+      setCodeNote(good(t('Nova koda je ustvarjena. Stara ne deluje več.')));
     } catch (error) {
       console.error('Nova koda ni bila ustvarjena:', error);
-      setCodeNote('Nove kode ni bilo mogoče ustvariti. Poskusi znova.');
+      setCodeNote(bad(t('Nove kode ni bilo mogoče ustvariti. Poskusi znova.')));
     }
   }
 
@@ -182,10 +188,10 @@ export default function SettingsPage() {
     setPreferenceNote(null);
     try {
       await updatePreferences(preferences);
-      setPreferenceNote('Nastavitve so shranjene.');
+      setPreferenceNote(good(t('Nastavitve so shranjene.')));
     } catch (error) {
       console.error('Shranjevanje nastavitev ni uspelo:', error);
-      setPreferenceNote('Nastavitev ni bilo mogoče shraniti. Poskusi znova.');
+      setPreferenceNote(bad(t('Nastavitev ni bilo mogoče shraniti. Poskusi znova.')));
     }
   }
 
@@ -207,10 +213,10 @@ export default function SettingsPage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `scribe-podatki-${getSlovenianDateKey()}.json`;
+      link.download = `scribe-${getSlovenianDateKey()}.json`;
       link.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setDataNote('Datoteka je prenesena.');
+      setDataNote(good(t('Datoteka je prenesena.')));
     });
   }
 
@@ -218,396 +224,282 @@ export default function SettingsPage() {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
+    // An export of a real account is far below this; a bigger file is not ours.
+    if (file.size > 5 * 1024 * 1024) {
+      setDataNote(bad(t('Datoteka je prevelika. Izberi datoteko, ki jo je izvozil Scribe.')));
+      return;
+    }
 
     setImporting(true);
     setDataNote(null);
     try {
-      const text = await file.text();
       let data;
       try {
-        data = JSON.parse(text);
+        data = JSON.parse(await file.text());
       } catch {
-        setDataNote('Datoteke ni mogoče prebrati. Izberi JSON datoteko, ki jo je izvozil Scribe.');
+        setDataNote(bad(t('Datoteke ni mogoče prebrati. Izberi datoteko, ki jo je izvozil Scribe.')));
         return;
       }
 
       const { validateImport, importAccountData } = await import('../services/accountService');
       const check = validateImport(data);
       if (!check.ok) {
-        setDataNote(check.error);
+        setDataNote(bad(t(check.error)));
         return;
       }
 
       const result = await importAccountData(currentUser.uid, data);
-      setDataNote(
-        `Uvoženo: ${result.subjects} predmetov, ${result.tasks} nalog, ${result.exams} preverjanj in ${result.flashcards} kartic.`,
-      );
+      setDataNote(good(t('Uvoženo: {subjects} predmetov, {tasks} nalog, {exams} preverjanj, {cards} kartic.', {
+        subjects: result.subjects,
+        tasks: result.tasks,
+        exams: result.exams,
+        cards: result.flashcards,
+      })));
     } catch (error) {
       console.error('Uvoz podatkov ni uspel:', error);
-      setDataNote('Podatkov ni bilo mogoče uvoziti. Poskusi znova.');
+      setDataNote(bad(t('Podatkov ni bilo mogoče uvoziti. Poskusi znova.')));
     } finally {
       setImporting(false);
     }
   }
 
   async function handleDeleteAccount(password) {
-    const chatIds = ['general', ...friends.map((friend) => getDmChatId(currentUser.uid, friend.uid))];
+    const chatIds = [
+      'general',
+      ...subjects.map((subject) => subjectChatId(subject.name)),
+      schoolChatId(userProfile?.school),
+      ...friends.map((friend) => getDmChatId(currentUser.uid, friend.uid)),
+    ];
     await deleteAccount(password, chatIds);
     navigate('/login', { replace: true });
   }
 
-  const completed = tasks.filter((task) => task.completed).length;
-  const pending = tasks.length - completed;
-  const completionRate = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
   const focusMinutes = sessions.reduce((sum, session) => sum + (session.minutes || 0), 0);
+  const minuteForms = { one: t('minuta'), two: t('minuti'), few: t('minute'), other: t('minut') };
+  const dayForms = { one: t('dan'), two: t('dneva'), few: t('dnevi'), other: t('dni') };
+  const joined = userProfile?.createdAt?.toDate
+    ? formatDate(getSlovenianDateKey(userProfile.createdAt.toDate()), { day: 'numeric', month: 'long', year: 'numeric' }, localeTag)
+    : '—';
 
   return (
-    <div className="max-w-3xl space-y-5">
+    <div className="max-w-3xl space-y-10">
       <section className="rise margin-rule">
-        <h1 className="text-page text-rp-text">Nastavitve</h1>
-        <p className="mt-2 max-w-xl text-body text-rp-muted">
-          Vse o svojem računu, videzu in načinu učenja je na enem mestu.
-        </p>
+        <h1 className="text-page text-rp-text">{t('Nastavitve')}</h1>
       </section>
 
-      <SettingsSection
-        id="profil"
-        title="Profil"
-        description="Tako te vidijo sošolci v klepetu in med prijatelji."
-      >
-        <div className="flex items-center gap-4">
-          <span
-            className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-rp-accent text-xl font-bold text-rp-accent-ink"
-            aria-hidden="true"
-          >
-            {(displayName?.[0] || '?').toUpperCase()}
-          </span>
-          <div className="min-w-0 flex-1">
-            <label className="field-label" htmlFor="settings-name">Vzdevek</label>
+      <SettingsSection id="profil" title={t('Profil')} description={t('Tako te vidijo sošolci v klepetu in med prijatelji.')}>
+        <form onSubmit={handleProfileSave} className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="field-label" htmlFor="settings-name">{t('Ime')}</label>
             <input
               id="settings-name"
               value={displayName}
               onChange={(event) => setDisplayName(event.target.value)}
               maxLength={60}
+              autoComplete="nickname"
               className="field"
             />
           </div>
-        </div>
-
-        <div className="mt-4">
-          <label className="field-label" htmlFor="settings-school">Šola</label>
-          <input
-            id="settings-school"
-            value={school}
-            onChange={(event) => setSchool(event.target.value)}
-            maxLength={120}
-            placeholder="Ime šole…"
-            className="field"
-          />
-        </div>
-
-        <button type="button" onClick={handleProfileSave} className="btn btn-primary mt-5">
-          Shrani profil
-        </button>
-        {profileNote && <Note tone="good">{profileNote}</Note>}
-      </SettingsSection>
-
-      <SettingsSection
-        id="racun"
-        title="Račun"
-        description="E-poštni naslov in geslo. Za spremembo potrdi geslo."
-      >
-        <dl className="grid gap-3 text-body">
-          <div className="flex justify-between gap-4 border-b border-rp-line pb-3">
-            <dt className="text-rp-muted">E-pošta</dt>
-            <dd className="truncate font-medium text-rp-text">{currentUser?.email || '—'}</dd>
+          <div>
+            <label className="field-label" htmlFor="settings-school">{t('Šola')}</label>
+            <input
+              id="settings-school"
+              value={school}
+              onChange={(event) => setSchool(event.target.value)}
+              maxLength={120}
+              autoComplete="organization"
+              className="field"
+            />
           </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-rp-muted">Članstvo</dt>
-            <dd className="font-medium text-rp-text">Od {userProfile?.createdAt?.toDate
-              ? new Date(userProfile.createdAt.toDate()).toLocaleDateString('sl-SI')
-              : '—'}</dd>
+          <div className="sm:col-span-2">
+            <button type="submit" className="btn btn-primary">{t('Shrani profil')}</button>
+            <Note note={profileNote} />
           </div>
-        </dl>
-
-        <form onSubmit={handleEmailChange} className="mt-6 border-t border-rp-line pt-5">
-          <h3 className="text-body font-semibold text-rp-text">Spremeni e-pošto</h3>
-          <p className="mt-1 text-small text-rp-muted">
-            Na nov naslov boš dobil potrditveno povezavo. Veljavnost je potrebna za prijavo.
-          </p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="field-label" htmlFor="settings-email">Nova e-pošta</label>
-              <input
-                id="settings-email"
-                type="email"
-                value={newEmail}
-                onChange={(event) => setNewEmail(event.target.value)}
-                autoComplete="email"
-                className="field"
-              />
-            </div>
-            <div>
-              <label className="field-label" htmlFor="settings-email-password">Trenutno geslo</label>
-              <input
-                id="settings-email-password"
-                type="password"
-                value={emailPassword}
-                onChange={(event) => setEmailPassword(event.target.value)}
-                autoComplete="current-password"
-                className="field"
-              />
-            </div>
-          </div>
-          <button
-            type="submit"
-            disabled={!newEmail || !emailPassword}
-            className="btn mt-3 disabled:opacity-50"
-          >
-            Spremeni e-pošto
-          </button>
-          {emailNote && <Note tone={emailNote.includes('poslana') ? 'good' : 'bad'}>{emailNote}</Note>}
-        </form>
-
-        <form onSubmit={handlePasswordChange} className="mt-6 border-t border-rp-line pt-5">
-          <h3 className="text-body font-semibold text-rp-text">Spremeni geslo</h3>
-          <p className="mt-1 text-small text-rp-muted">Uporabi vsaj 6 znakov.</p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="field-label" htmlFor="settings-new-password">Novo geslo</label>
-              <input
-                id="settings-new-password"
-                type="password"
-                value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
-                autoComplete="new-password"
-                className="field"
-              />
-            </div>
-            <div>
-              <label className="field-label" htmlFor="settings-current-password">Trenutno geslo</label>
-              <input
-                id="settings-current-password"
-                type="password"
-                value={passwordCurrent}
-                onChange={(event) => setPasswordCurrent(event.target.value)}
-                autoComplete="current-password"
-                className="field"
-              />
-            </div>
-          </div>
-          <button
-            type="submit"
-            disabled={!newPassword || !passwordCurrent}
-            className="btn mt-3 disabled:opacity-50"
-          >
-            Spremeni geslo
-          </button>
-          {passwordNote && <Note tone={passwordNote.includes('spremenjeno') ? 'good' : 'bad'}>{passwordNote}</Note>}
         </form>
       </SettingsSection>
 
-      <SettingsSection
-        id="koda"
-        title="Prijateljska koda"
-        description="Koda tebe poišče med sošolci. Deli jo s tistimi, ki jih želiš dodati."
-      >
+      <SettingsSection id="jezik" title={t('Jezik')} description={t('Jezik vmesnika. Shrani se v tvoj račun in velja na vseh napravah.')}>
+        <LanguageSelect />
+      </SettingsSection>
+
+      <SettingsSection id="koda" title={t('Koda prijatelja')} description={t('S to kodo te sošolci dodajo med prijatelje.')}>
         <div className="flex flex-wrap items-center gap-3">
           {friendCode ? (
-            <span className="mono rounded-md border border-rp-line bg-rp-sunken px-4 py-2 text-xl tracking-[0.2em] text-rp-text">
-              {friendCode}
-            </span>
+            <span className="mono text-2xl tracking-[0.2em] text-rp-text">{friendCode}</span>
           ) : (
-            <span className="skel h-11 w-40" aria-hidden="true" />
+            <span className="skel h-8 w-36" aria-hidden="true" />
           )}
           <button type="button" onClick={handleCopyCode} disabled={!friendCode} className="btn">
-            {copied ? <CheckIcon className="h-4 w-4" /> : <CopyIcon className="h-4 w-4" />}
-            {copied ? 'Kopirano' : 'Kopiraj kodo'}
+            {copied ? t('Kopirano') : t('Kopiraj')}
           </button>
           <button type="button" onClick={handleRegenerateCode} disabled={!friendCode} className="btn btn-link">
-            Ustvari novo kodo
+            {t('Ustvari novo kodo')}
           </button>
         </div>
-        <p className="mt-3 text-small leading-5 text-rp-muted">
-          Nova koda takoj unovi staro. Če kodo deliš javno, jo zamenjaj.
-        </p>
-        {codeNote && <Note tone={codeNote.includes('ne deluje') ? 'good' : 'muted'}>{codeNote}</Note>}
+        <Note note={codeNote} />
       </SettingsSection>
 
-      <SettingsSection
-        id="videz"
-        title="Videz"
-        description="Dva videza in dve možnosti za lažje branje."
-      >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <span
-              className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-rp-accent"
-              aria-hidden="true"
+      <SettingsSection id="videz" title={t('Videz')}>
+        <div className="flex gap-1 self-start rounded-sm border border-rp-line p-1" role="group" aria-label={t('Izbira videza')}>
+          {THEMES.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setTheme(item.id)}
+              aria-pressed={theme === item.id}
+              className={`min-h-9 rounded-xs px-4 text-small font-semibold transition-colors ${
+                theme === item.id ? 'bg-rp-mark text-rp-mark-ink' : 'text-rp-muted hover:text-rp-text'
+              }`}
             >
-              {theme === 'noc'
-                ? <MoonIcon className="h-6 w-6 text-rp-accent-ink" />
-                : <SunIcon className="h-6 w-6 text-rp-accent-ink" />}
-            </span>
-            <div className="min-w-0">
-              <p className="text-subtitle text-rp-text">
-                {THEMES.find((item) => item.id === theme)?.name || 'Noč'}
-              </p>
-              <p className="mt-0.5 text-small text-rp-muted">
-                {THEMES.find((item) => item.id === theme)?.description}
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-1 rounded-md bg-rp-overlay p-1" role="group" aria-label="Izbira videza">
-            {THEMES.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setTheme(item.id)}
-                aria-pressed={theme === item.id}
-                className={`rounded-xs px-4 py-2 text-small font-semibold transition-colors ${
-                  theme === item.id ? 'bg-rp-raised text-rp-text' : 'text-rp-muted hover:text-rp-text'
-                }`}
-              >
-                {item.name}
-              </button>
-            ))}
-          </div>
+              {t(item.name)}
+            </button>
+          ))}
         </div>
-
-        <div className="mt-2">
+        <div className="mt-4">
           <Toggle
-            title="Močnejši kontrast"
-            description="Izrazitejše obrobe in besedilo za boljšo berljivost."
+            id="pref-contrast"
+            title={t('Močnejši kontrast')}
+            description={t('Izrazitejše črte in besedilo.')}
             checked={highContrast}
             onChange={setHighContrast}
           />
           <Toggle
-            title="Zmanjšaj animacije"
-            description="Izklopi premike in prehode v aplikaciji."
+            id="pref-motion"
+            title={t('Manj gibanja')}
+            description={t('Izklopi premike in prehode.')}
             checked={reduceMotion}
             onChange={setReduceMotion}
           />
         </div>
       </SettingsSection>
 
-      <SettingsSection
-        id="ucne-nastavitve"
-        title="Učne nastavitve"
-        description="Kako Scribe razporeja tvoj dan in opozarja na roke."
-      >
+      <SettingsSection id="ucenje" title={t('Učenje')}>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="field-label" htmlFor="pref-focus">Dolžina seje fokusa</label>
+            <label className="field-label" htmlFor="pref-focus">{t('Dolžina seje fokusa')}</label>
             <select
               id="pref-focus"
               value={preferences.focusMinutes}
-              onChange={(event) => setPreferences((previous) => ({
-                ...previous,
-                focusMinutes: Number(event.target.value),
-              }))}
+              onChange={(event) => setPreferences((previous) => ({ ...previous, focusMinutes: Number(event.target.value) }))}
               className="field"
             >
               {FOCUS_OPTIONS.map((minutes) => (
-                <option key={minutes} value={minutes}>{minutes} minut</option>
+                <option key={minutes} value={minutes}>{tn(minutes, minuteForms)}</option>
               ))}
             </select>
           </div>
-
           <div>
-            <label className="field-label" htmlFor="pref-start">Kdaj se dan začne</label>
+            <label className="field-label" htmlFor="pref-start">{t('Kdaj se dan začne')}</label>
             <input
               id="pref-start"
               type="time"
               value={preferences.startTime}
-              onChange={(event) => setPreferences((previous) => ({
-                ...previous,
-                startTime: event.target.value,
-              }))}
+              onChange={(event) => setPreferences((previous) => ({ ...previous, startTime: event.target.value }))}
               className="field mono"
             />
           </div>
-
           <div>
-            <label className="field-label" htmlFor="pref-warning">Opozori na rok</label>
+            <label className="field-label" htmlFor="pref-warning">{t('Opozori na rok')}</label>
             <select
               id="pref-warning"
               value={preferences.deadlineWarningDays}
-              onChange={(event) => setPreferences((previous) => ({
-                ...previous,
-                deadlineWarningDays: Number(event.target.value),
-              }))}
+              onChange={(event) => setPreferences((previous) => ({ ...previous, deadlineWarningDays: Number(event.target.value) }))}
               className="field"
             >
               {WARNING_OPTIONS.map((days) => (
-                <option key={days} value={days}>{days} dni prej</option>
+                <option key={days} value={days}>{t('{count} prej', { count: tn(days, dayForms) })}</option>
               ))}
             </select>
           </div>
-
           <div>
-            <label className="field-label" htmlFor="pref-week">Teden se začne z</label>
+            <label className="field-label" htmlFor="pref-week">{t('Teden se začne z')}</label>
             <select
               id="pref-week"
               value={preferences.weekStart}
-              onChange={(event) => setPreferences((previous) => ({
-                ...previous,
-                weekStart: event.target.value,
-              }))}
+              onChange={(event) => setPreferences((previous) => ({ ...previous, weekStart: event.target.value }))}
               className="field"
             >
               {WEEK_STARTS.map((option) => (
-                <option key={option.id} value={option.id}>{option.label}</option>
+                <option key={option.id} value={option.id}>{t(option.label)}</option>
               ))}
             </select>
           </div>
         </div>
-
         <button type="button" onClick={handlePreferencesSave} className="btn btn-primary mt-5">
-          Shrani nastavitve
+          {t('Shrani nastavitve')}
         </button>
-        {preferenceNote && <Note tone="good">{preferenceNote}</Note>}
+        <Note note={preferenceNote} />
       </SettingsSection>
 
-      <SettingsSection
-        id="podatki"
-        title="Tvoji podatki"
-        description="Izvozi vse, kar imaš v Scribe, ali pa uvozi nazaj iz rezervne kopije."
-      >
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-md border border-rp-line bg-rp-sunken p-4">
-            <p className="tnum text-2xl font-bold text-rp-text">{subjects.length}</p>
-            <p className="mt-1 text-small text-rp-muted">predmetov</p>
+      <SettingsSection id="racun" title={t('Račun')}>
+        <dl className="ledger">
+          <div className="ledger-row flex justify-between gap-4 py-3">
+            <dt className="text-body text-rp-muted">{t('E-pošta')}</dt>
+            <dd className="truncate text-body font-medium text-rp-text">{currentUser?.email || '—'}</dd>
           </div>
-          <div className="rounded-md border border-rp-line bg-rp-sunken p-4">
-            <p className="tnum text-2xl font-bold text-rp-text">{tasks.length}</p>
-            <p className="mt-1 text-small text-rp-muted">nalog</p>
+          <div className="ledger-row flex justify-between gap-4 py-3">
+            <dt className="text-body text-rp-muted">{t('Račun od')}</dt>
+            <dd className="text-body font-medium text-rp-text">{joined}</dd>
           </div>
-          <div className="rounded-md border border-rp-line bg-rp-sunken p-4">
-            <p className="tnum text-2xl font-bold text-rp-warn">{pending}</p>
-            <p className="mt-1 text-small text-rp-muted">odprtih</p>
-          </div>
-          <div className="rounded-md border border-rp-line bg-rp-sunken p-4">
-            <p className="tnum text-2xl font-bold text-rp-success">{completionRate}%</p>
-            <p className="mt-1 text-small text-rp-muted">opravljeno</p>
-          </div>
-        </div>
+        </dl>
 
-        <p className="mt-3 text-small text-rp-muted">
-          Skupaj imaš {countedNoun(focusMinutes, 'minuto fokusa', 'minuti fokusa', 'minute fokusa', 'minut fokusa')}.
+        <form onSubmit={handleEmailChange} className="mt-8">
+          <h3 className="text-body font-semibold text-rp-text">{t('Spremeni e-pošto')}</h3>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="field-label" htmlFor="settings-email">{t('Nova e-pošta')}</label>
+              <input id="settings-email" type="email" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} autoComplete="email" className="field" />
+            </div>
+            <div>
+              <label className="field-label" htmlFor="settings-email-password">{t('Trenutno geslo')}</label>
+              <input id="settings-email-password" type="password" value={emailPassword} onChange={(event) => setEmailPassword(event.target.value)} autoComplete="current-password" className="field" />
+            </div>
+          </div>
+          <button type="submit" disabled={!newEmail || !emailPassword} className="btn mt-3">{t('Spremeni e-pošto')}</button>
+          <Note note={emailNote} />
+        </form>
+
+        <form onSubmit={handlePasswordChange} className="mt-8">
+          <h3 className="text-body font-semibold text-rp-text">{t('Spremeni geslo')}</h3>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="field-label" htmlFor="settings-new-password">{t('Novo geslo')}</label>
+              <input
+                id="settings-new-password"
+                type="password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                autoComplete="new-password"
+                minLength={MIN_PASSWORD_LENGTH}
+                aria-describedby="settings-new-password-hint"
+                className="field"
+              />
+              <p id="settings-new-password-hint" className="mt-1 text-small text-rp-muted">{t('Vsaj 10 znakov.')}</p>
+            </div>
+            <div>
+              <label className="field-label" htmlFor="settings-current-password">{t('Trenutno geslo')}</label>
+              <input id="settings-current-password" type="password" value={passwordCurrent} onChange={(event) => setPasswordCurrent(event.target.value)} autoComplete="current-password" className="field" />
+            </div>
+          </div>
+          <button type="submit" disabled={newPassword.length < MIN_PASSWORD_LENGTH || !passwordCurrent} className="btn mt-3">{t('Spremeni geslo')}</button>
+          <Note note={passwordNote} />
+        </form>
+      </SettingsSection>
+
+      <SettingsSection id="podatki" title={t('Tvoji podatki')} description={t('Prenesi kopijo vsega, kar imaš v Scribe, ali jo uvozi nazaj.')}>
+        <p className="text-small text-rp-muted">
+          {t('{subjects} predmetov, {tasks} nalog, {exams} preverjanj, {cards} kartic in {minutes} fokusa.', {
+            subjects: subjects.length,
+            tasks: tasks.length,
+            exams: exams.length,
+            cards: cards.length,
+            minutes: tn(focusMinutes, minuteForms),
+          })}
         </p>
-
-        <div className="mt-5 flex flex-wrap gap-2 border-t border-rp-line pt-5">
-          <button type="button" onClick={handleExport} className="btn">
-            Izvozi podatke
-          </button>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
-            className="btn disabled:opacity-50"
-          >
-            {importing ? 'Uvozim…' : 'Uvozi podatke'}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button type="button" onClick={handleExport} className="btn">{t('Izvozi podatke')}</button>
+          <button type="button" onClick={() => fileInputRef.current?.click()} disabled={importing} className="btn">
+            {importing ? t('Uvažam…') : t('Uvozi podatke')}
           </button>
           <input
             ref={fileInputRef}
@@ -615,37 +507,20 @@ export default function SettingsPage() {
             accept="application/json,.json"
             onChange={handleImportFile}
             className="sr-only"
-            aria-label="Izberi JSON datoteko za uvoz"
+            tabIndex={-1}
+            aria-hidden="true"
           />
         </div>
-        {dataNote && <Note tone={dataNote.includes('ni bilo mogoče') ? 'bad' : 'good'}>{dataNote}</Note>}
+        <Note note={dataNote} />
       </SettingsSection>
 
       <SettingsSection
-        id="nevarno-obmocje"
-        title="Nevarno območje"
-        description="Brisanje računa odstrani vse podatke, ki jih imaš v Scribe."
+        id="brisanje"
+        title={t('Izbriši račun')}
+        description={t('Predmeti, naloge, preverjanja, kartice, seje fokusa in sporočila se izbrišejo. Tega ni mogoče razveljaviti.')}
       >
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <p className="max-w-md text-small leading-5 text-rp-muted">
-            Predmeti, naloge, preverjanja, kartice, zapisani fokusi in klepeti se izbrišejo.
-            Tega ni mogoče razveljaviti.
-          </p>
-          <button
-            type="button"
-            onClick={() => { setDeleteNote(null); setDeleteOpen(true); }}
-            className="rounded-md border border-rp-danger/40 px-4 py-2.5 text-small font-semibold text-rp-danger transition-colors hover:bg-rp-danger/10"
-          >
-            Izbriši račun
-          </button>
-        </div>
-        {deleteNote && <Note tone="bad">{deleteNote}</Note>}
+        <button type="button" onClick={() => setDeleteOpen(true)} className="btn btn-danger">{t('Izbriši račun')}</button>
       </SettingsSection>
-
-      <p className="px-1 text-small leading-5 text-rp-muted">
-        Videz in dostopnost se shranita v tem brskalniku. Profil, predmeti, naloge in
-        nastavitve se shranijo v tvoj račun.
-      </p>
 
       <DeleteAccountModal
         isOpen={deleteOpen}
