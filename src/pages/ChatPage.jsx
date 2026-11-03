@@ -224,7 +224,7 @@ function Composer({ chatId, currentUser, roomName, autoFocus }) {
   }
 
   return (
-    <form onSubmit={send} className="shrink-0 border-t border-rp-line bg-rp-canvas px-3 py-2.5 md:px-4">
+    <form onSubmit={send} className="shrink-0 border-t border-rp-line bg-rp-canvas px-4 pt-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))]">
       {failed && (
         <p className="mb-2 text-small text-rp-danger" role="alert">{t('Sporočilo ni bilo poslano. Poskusi znova.')}</p>
       )}
@@ -391,7 +391,7 @@ export default function ChatPage() {
       )}
 
       <section className="flex min-w-0 flex-1 flex-col" aria-label={active.name}>
-        <header className="flex shrink-0 items-center gap-2 border-b border-rp-line px-2 py-2 md:px-4">
+        <header className="flex shrink-0 items-center gap-2 border-b border-rp-line px-3 py-2 md:px-4">
           <button
             type="button"
             onClick={() => setListOpen(true)}

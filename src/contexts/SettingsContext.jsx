@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState } from 'react';
 import { useAuth } from './AuthContext';
+import { app } from '../firebase';
 import { DEFAULT_THEME, normalizeThemeId } from '../utils/themes';
 
 const STORAGE_KEY = 'scribe.settings.v1';
@@ -84,10 +85,9 @@ export function SettingsProvider({ children }) {
 
     try {
       // The database SDK is loaded only when a theme is actually saved.
-      const [{ doc, updateDoc }, { db }] = await Promise.all([
-        import('firebase/firestore'),
-        import('../firebaseDb'),
-      ]);
+      const { doc, getFirestore, updateDoc } = await import('firebase/firestore');
+      const db = app ? getFirestore(app) : null;
+      if (!db) return;
       await updateDoc(doc(db, 'users', currentUid), { theme: nextTheme });
     } catch (error) {
       // The theme is already applied and stored in this browser; only the copy

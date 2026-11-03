@@ -76,7 +76,7 @@ export default function TaskLedger({ tasks, subjects, onEdit, onDelete, onSetCom
         <div
           role="region"
           aria-label={t('Izbrane naloge')}
-          className="selection-bar sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 mt-3 flex flex-wrap items-center gap-2 rounded-md border border-rp-line-strong bg-rp-raised p-2 pl-3 lg:bottom-4"
+          className="selection-bar sticky bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 mt-3 flex flex-wrap items-center gap-2 rounded-md border border-rp-line-strong bg-rp-raised p-2 pl-3"
         >
           <p className="mr-auto text-small font-semibold text-rp-text" aria-live="polite">
             {t('Izbrano: {count}', { count: tn(count, taskForms) })}

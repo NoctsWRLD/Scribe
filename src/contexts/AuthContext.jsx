@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { isFirebaseConfigured } from '../firebase';
+import { app, isFirebaseConfigured } from '../firebase';
 
 /**
  * The authentication SDK is loaded on demand.
@@ -14,10 +14,7 @@ async function getAuthInstance() {
   if (!isFirebaseConfigured) return null;
   if (!authPromise) {
     authPromise = (async () => {
-      const [{ getAuth }, { app }] = await Promise.all([
-        import('firebase/auth'),
-        import('../firebase'),
-      ]);
+      const { getAuth } = await import('firebase/auth');
       return app ? getAuth(app) : null;
     })();
   }

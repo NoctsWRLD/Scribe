@@ -61,6 +61,10 @@ export default defineConfig({
     githubPagesSpaFallback(),
   ],
   build: {
+    // Firestore's realtime SDK is a separately lazy-loaded vendor chunk.
+    // Its minified size is about 588 KB; keep a little headroom without
+    // hiding growth in the app's own chunks.
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         // The database SDK is only needed by the signed-in screens. Without an

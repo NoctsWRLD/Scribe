@@ -7,7 +7,7 @@ export default function TopBar({ onOpenMenu }) {
   const { t } = useI18n();
 
   return (
-    <header className="sticky top-0 z-20 border-b border-rp-line bg-rp-canvas/95 backdrop-blur-xl lg:hidden">
+    <header className="sticky top-0 z-20 border-b border-rp-line bg-rp-canvas lg:hidden">
       <div className="flex h-14 items-center gap-3 px-4">
         <Link to="/dashboard" className="flex shrink-0 items-center gap-2.5" aria-label={t('Scribe domov')}>
           <Logo size={27} />

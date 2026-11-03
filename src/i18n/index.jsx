@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { app } from '../firebase';
 import { DEFAULT_LOCALE, detectLocale, getLocale, isLocale, normalizeLocale } from './locales';
 import { translate } from './messages';
 import { counted, nounForm } from './plural';
@@ -51,10 +52,9 @@ export function I18nProvider({ children }) {
       }
       if (!currentUid) return;
       try {
-        const [{ doc, updateDoc }, { db }] = await Promise.all([
-          import('firebase/firestore'),
-          import('../firebaseDb'),
-        ]);
+        const { doc, getFirestore, updateDoc } = await import('firebase/firestore');
+        const db = app ? getFirestore(app) : null;
+        if (!db) return;
         await updateDoc(doc(db, 'users', currentUid), { locale: next });
       } catch (error) {
         // The language is already applied in this browser.

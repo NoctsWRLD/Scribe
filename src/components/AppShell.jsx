@@ -33,7 +33,7 @@ export default function AppShell({ children }) {
           id="main-content"
           className={isChat
             ? 'mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col'
-            : 'mx-auto w-full max-w-6xl flex-1 px-4 pb-10 pt-8 md:px-6 lg:pt-12'}
+            : 'mx-auto w-full max-w-6xl flex-1 px-4 pb-8 pt-6 md:px-6 md:pb-10 md:pt-8 lg:pt-12'}
         >
           {children}
         </main>

@@ -123,8 +123,8 @@ export default function TasksPage() {
             ))}
           </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-[minmax(12rem,1fr)_auto_auto] lg:ml-auto">
-            <label className="relative col-span-2 block sm:col-span-1">
+          <div className="grid gap-2 sm:grid-cols-[minmax(12rem,1fr)_auto_auto] lg:ml-auto">
+            <label className="relative block">
               <span className="sr-only">{t('Poišči nalogo')}</span>
               <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-rp-muted" />
               <input
