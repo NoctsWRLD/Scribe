@@ -27,7 +27,15 @@ export default function PublicSettings() {
       }
     }
     function onPointer(event) {
-      if (panelRef.current && !panelRef.current.contains(event.target)) setOpen(false);
+      const panel = panelRef.current;
+      if (!panel || panel.contains(event.target)) return;
+
+      // Select renders its listbox in a portal at the document root. Treat a
+      // listbox controlled by one of this panel's selects as an inside click.
+      const listbox = event.target.closest?.('[role="listbox"]');
+      const belongsToPanel = listbox && [...panel.querySelectorAll('[aria-controls]')]
+        .some((control) => control.getAttribute('aria-controls') === listbox.id);
+      if (!belongsToPanel) setOpen(false);
     }
     document.addEventListener('keydown', onKey);
     document.addEventListener('pointerdown', onPointer);
