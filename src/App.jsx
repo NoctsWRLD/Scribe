@@ -13,7 +13,7 @@ import { I18nProvider } from './i18n';
 
 /*
  * The signed-in app is a separate bundle. A visitor who only reads the
- * landing page never downloads Firebase, the chat or the OCR worker.
+ * landing page never downloads Firebase or the chat.
  */
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));

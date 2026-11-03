@@ -2,7 +2,8 @@
 
 > Scribe je šolski dnevnik za dijake, dijakinje in študente: predmeti, naloge,
 > preverjanja, urnik, kartice, klepet in fokus na enem mestu. Uporabniški vmesnik
-> je v slovenščini. Slogan: »Zapiši. Nauči se.«
+> je v slovenščini, angleščini, nemščini, italijanščini in hrvaščini; pravne
+> strani so samo v slovenščini. Slogan: »Zapiši. Nauči se.«
 
 ## Javne strani
 

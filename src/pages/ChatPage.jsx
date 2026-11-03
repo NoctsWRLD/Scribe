@@ -165,10 +165,26 @@ function Composer({ chatId, currentUser, roomName, autoFocus }) {
   const [sending, setSending] = useState(false);
   const [failed, setFailed] = useState(false);
   const inputRef = useRef(null);
+  const sendingRef = useRef(false);
+  const lastAttemptRef = useRef(0);
+  const [cooldownUntil, setCooldownUntil] = useState(0);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
 
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus({ preventScroll: true });
   }, [chatId, autoFocus]);
+
+  useEffect(() => {
+    if (!cooldownUntil) return undefined;
+    const tick = () => {
+      const left = Math.max(0, cooldownUntil - Date.now());
+      setCooldownRemaining(left);
+      if (!left) setCooldownUntil(0);
+    };
+    tick();
+    const timer = window.setInterval(tick, 150);
+    return () => window.clearInterval(timer);
+  }, [cooldownUntil]);
 
   // Grow with the text up to five lines, then scroll inside.
   useLayoutEffect(() => {
@@ -180,16 +196,28 @@ function Composer({ chatId, currentUser, roomName, autoFocus }) {
 
   async function send(event) {
     event?.preventDefault();
-    if (!text.trim() || sending) return;
+    if (!text.trim() || sendingRef.current) return;
+    const now = Date.now();
+    if (now - lastAttemptRef.current < 2000) {
+      setCooldownUntil(lastAttemptRef.current + 2000);
+      return;
+    }
+    lastAttemptRef.current = now;
+    sendingRef.current = true;
     setSending(true);
     setFailed(false);
     try {
       await sendMessage(chatId, currentUser, text);
       setText('');
+      setCooldownUntil(Date.now() + 2000);
     } catch (error) {
-      console.error('Sporočilo ni bilo poslano:', error);
-      setFailed(true);
+      if (error.code === 'chat/rate-limit') setCooldownUntil(lastAttemptRef.current + 2000);
+      else {
+        console.error('Sporočilo ni bilo poslano:', error);
+        setFailed(true);
+      }
     } finally {
+      sendingRef.current = false;
       setSending(false);
       inputRef.current?.focus({ preventScroll: true });
     }
@@ -199,6 +227,9 @@ function Composer({ chatId, currentUser, roomName, autoFocus }) {
     <form onSubmit={send} className="shrink-0 border-t border-rp-line bg-rp-canvas px-3 py-2.5 md:px-4">
       {failed && (
         <p className="mb-2 text-small text-rp-danger" role="alert">{t('Sporočilo ni bilo poslano. Poskusi znova.')}</p>
+      )}
+      {cooldownRemaining > 0 && (
+        <p className="mb-2 text-small text-rp-muted" role="status">{t('Počakaj trenutek pred naslednjim sporočilom.')}</p>
       )}
       <div className="flex items-end gap-2">
         <label htmlFor="chat-composer" className="sr-only">{t('Sporočilo za {room}', { room: roomName })}</label>
@@ -215,7 +246,7 @@ function Composer({ chatId, currentUser, roomName, autoFocus }) {
           enterKeyHint="send"
           className="field min-h-11 flex-1 resize-none !py-2.5 leading-snug"
         />
-        <button type="submit" disabled={!text.trim() || sending} className="btn btn-primary min-h-11 shrink-0">
+        <button type="submit" disabled={!text.trim() || sending || cooldownRemaining > 0} className="btn btn-primary min-h-11 shrink-0">
           {sending ? t('Pošiljam…') : t('Pošlji')}
         </button>
       </div>

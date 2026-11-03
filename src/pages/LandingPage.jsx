@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import SiteHeader from '../components/SiteHeader';
 import SiteFooter from '../components/SiteFooter';
-import LanguageSelect from '../components/LanguageSelect';
 import { SITE_DESCRIPTION, SITE_NAME, absoluteUrl } from '../config';
 import { addDaysToDateKey, formatDate, getSlovenianDateKey } from '../utils/dates';
 import { getWeekStart } from '../utils/rail';
@@ -49,7 +48,7 @@ function FaqItem({ question, answer }) {
           type="button"
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}
-          className="flex min-h-14 w-full items-center justify-between gap-4 py-3 text-left text-subtitle text-rp-text transition-colors hover:text-rp-accent"
+          className="flex min-h-16 w-full items-center justify-between gap-6 py-4 text-left text-subtitle text-rp-text transition-colors hover:text-rp-accent"
         >
           {t(question)}
           <svg
@@ -59,11 +58,11 @@ function FaqItem({ question, answer }) {
             stroke="currentColor"
             aria-hidden="true"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 9l6 6 6-6" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M5 12h14M12 5v14" />
           </svg>
         </button>
       </h3>
-      {open && <p className="max-w-2xl pb-4 text-body text-rp-muted">{t(answer)}</p>}
+      {open && <p className="max-w-2xl pb-5 text-body text-rp-muted">{t(answer)}</p>}
     </li>
   );
 }
@@ -101,23 +100,30 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-dvh bg-rp-canvas">
+      <a
+        href="#main-content"
+        className="sr-only z-[100] bg-rp-accent px-4 py-2 font-semibold text-rp-accent-ink focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+      >
+        {t('Preskoči na vsebino')}
+      </a>
       <SiteHeader />
 
-      <main>
-        {/* The hero is the rail: the product's one device, at full width. */}
-        <section className="mx-auto max-w-6xl px-4 pb-16 pt-12 md:px-6 md:pb-24 md:pt-20">
-          <h1 className="max-w-3xl text-display text-rp-text">
+      <main id="main-content">
+        {/* The hero is the headline and the rail: the product's one device. */}
+        <section className="mx-auto max-w-6xl px-4 pb-14 pt-12 md:px-6 md:pb-20 md:pt-20">
+          <p className="eyebrow">Scribe · {new Date().getFullYear()}</p>
+          <h1 className="mt-6 max-w-4xl text-display text-rp-text">
             {t('Vsaka naloga in vsak test, preden te presenetita.')}
           </h1>
-          <p className="mt-5 max-w-xl text-subtitle font-normal text-rp-subtle">
+          <p className="deck mt-7">
             {t('Scribe je šolski dnevnik za učence in študente. Brezplačen, brez oglasov, za vsako šolo.')}
           </p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
+          <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">
             <Link to="/register" className="btn btn-primary btn-lg">{t('Ustvari račun')}</Link>
-            <Link to="/login" className="btn btn-lg">{t('Prijava')}</Link>
+            <Link to="/login" className="link-signal">{t('Prijava')}</Link>
           </div>
 
-          <figure className="mt-16 md:mt-20">
+          <figure className="mt-12 md:mt-16">
             <ul className="rail !h-4 md:!h-5" aria-hidden="true">
               {SAMPLE_WEEK.map(([tone, value], index) => (
                 <li key={index} className="rail-seg" data-tone={tone}>
@@ -141,7 +147,10 @@ export default function LandingPage() {
 
         <section id="moznosti" className="border-t border-rp-line py-16 md:py-24">
           <div className="mx-auto grid max-w-6xl gap-10 px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-            <h2 className="text-page text-rp-text">{t('Kaj je v njem')}</h2>
+            <div>
+              <p className="eyebrow">01</p>
+              <h2 className="mt-3 text-page text-rp-text">{t('Kaj je v njem')}</h2>
+            </div>
             <ul className="grid gap-x-10 sm:grid-cols-2">
               {FEATURES.map((feature) => {
                 const Icon = feature.icon;
@@ -151,7 +160,7 @@ export default function LandingPage() {
                       <Icon className="h-4 w-4 shrink-0 text-rp-accent" />
                       {t(feature.title)}
                     </h3>
-                    <p className="mt-1.5 text-body text-rp-muted">{t(feature.copy)}</p>
+                    <p className="mt-2 text-body text-rp-muted">{t(feature.copy)}</p>
                   </li>
                 );
               })}
@@ -161,13 +170,16 @@ export default function LandingPage() {
 
         <section id="kako-deluje" className="border-t border-rp-line py-16 md:py-24">
           <div className="mx-auto grid max-w-6xl gap-10 px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-            <h2 className="text-page text-rp-text">{t('Kako začneš')}</h2>
-            <ol className="grid gap-x-10 sm:grid-cols-3">
+            <div>
+              <p className="eyebrow">02</p>
+              <h2 className="mt-3 text-page text-rp-text">{t('Kako začneš')}</h2>
+            </div>
+            <ol className="grid gap-x-10 gap-y-8 sm:grid-cols-3">
               {STEPS.map(([title, copy], index) => (
                 <li key={title} className="border-t-2 border-rp-mark pt-4">
-                  <p className="tnum text-small font-semibold text-rp-accent">{index + 1}</p>
-                  <h3 className="mt-1 text-subtitle text-rp-text">{t(title)}</h3>
-                  <p className="mt-1.5 text-body text-rp-muted">{t(copy)}</p>
+                  <p className="mono text-small text-rp-accent">{String(index + 1).padStart(2, '0')}</p>
+                  <h3 className="mt-2 font-display text-xl font-semibold text-rp-text">{t(title)}</h3>
+                  <p className="mt-2 text-body text-rp-muted">{t(copy)}</p>
                 </li>
               ))}
             </ol>
@@ -176,38 +188,34 @@ export default function LandingPage() {
 
         <section id="jeziki" className="border-t border-rp-line py-16 md:py-24">
           <div className="mx-auto grid max-w-6xl gap-10 px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-            <h2 className="text-page text-rp-text">{t('Pet jezikov')}</h2>
             <div>
-              <ul className="flex flex-wrap gap-x-6 gap-y-2 text-title text-rp-text" lang="">
+              <p className="eyebrow">03</p>
+              <h2 className="mt-3 text-page text-rp-text">{t('Pet jezikov')}</h2>
+            </div>
+            <div>
+              <ul className="flex flex-wrap gap-x-8 gap-y-2 font-display text-2xl text-rp-text" lang="">
                 {LOCALES.map((locale) => (
                   <li key={locale.id} lang={locale.htmlLang}>{locale.label}</li>
                 ))}
               </ul>
-              <p className="mt-4 max-w-lg text-body text-rp-muted">
+              <p className="mt-5 max-w-lg text-body text-rp-muted">
                 {t('Vsak sošolec lahko uporablja svoj jezik. Klepet in naloge delujejo enako.')}
               </p>
-              <div className="mt-5">
-                <LanguageSelect />
-              </div>
             </div>
           </div>
         </section>
 
         <section id="vprasanja" className="border-t border-rp-line py-16 md:py-24">
           <div className="mx-auto grid max-w-6xl gap-10 px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-            <h2 className="text-page text-rp-text">{t('Vprašanja')}</h2>
+            <div>
+              <p className="eyebrow">04</p>
+              <h2 className="mt-3 text-page text-rp-text">{t('Vprašanja')}</h2>
+            </div>
             <ul className="border-t border-rp-line">
               {FAQ.map(([question, answer]) => (
                 <FaqItem key={question} question={question} answer={answer} />
               ))}
             </ul>
-          </div>
-        </section>
-
-        <section className="border-t border-rp-line py-16 md:py-20">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-6 px-4 md:px-6">
-            <h2 className="max-w-xl text-page text-rp-text">{t('Zapiši prvi rok še danes.')}</h2>
-            <Link to="/register" className="btn btn-primary btn-lg">{t('Ustvari račun')}</Link>
           </div>
         </section>
       </main>

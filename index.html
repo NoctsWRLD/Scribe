@@ -1,11 +1,31 @@
 <!doctype html>
-<html lang="sl">
+<html lang="sl" data-theme="noc">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/scribe-logo.svg" />
     <link rel="apple-touch-icon" href="/scribe-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0b1020" />
+    <meta name="theme-color" content="#14120f" />
+    <!-- Apply the saved theme before the first paint. Without this a visitor
+         who chose the light theme sees a dark flash on every navigation.
+
+         This script is inline on purpose: it must run before the module
+         bundle. SECURITY.md carries the SHA-256 that a future
+         Content-Security-Policy pins it with; recompute it if this changes. -->
+    <script>
+      (function () {
+        try {
+          var root = document.documentElement;
+          var theme = localStorage.getItem('scribe.theme') || localStorage.getItem('smartstudy.theme');
+          if (theme === 'dnevnik') root.dataset.theme = 'dnevnik';
+          var saved = JSON.parse(localStorage.getItem('scribe.settings.v1') || '{}');
+          root.dataset.contrast = saved.highContrast ? 'high' : 'normal';
+          root.dataset.motion = saved.reduceMotion ? 'reduced' : 'full';
+        } catch (error) {
+          // A blocked localStorage still gets the default dark theme.
+        }
+      })();
+    </script>
     <meta
       name="description"
       content="Scribe je šolski dnevnik: predmeti, naloge, preverjanja, urnik, kartice in prijatelji na enem mestu. Zapiši. Nauči se."
@@ -38,14 +58,14 @@
          parsed. Without this the first text is painted in the fallback face. -->
     <link
       rel="preload"
-      href="/src/assets/fonts/dm-sans-latin.woff2"
+      href="/src/assets/fonts/fraunces-latin.woff2"
       as="font"
       type="font/woff2"
       crossorigin
     />
     <link
       rel="preload"
-      href="/src/assets/fonts/space-grotesk-latin.woff2"
+      href="/src/assets/fonts/karla-latin.woff2"
       as="font"
       type="font/woff2"
       crossorigin

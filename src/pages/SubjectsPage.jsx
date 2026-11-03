@@ -29,8 +29,8 @@ function SubjectRow({ subject, tasks, onEdit, onDelete }) {
           </span>
         </span>
         <span className="hidden w-36 shrink-0 sm:block" aria-hidden="true">
-          <span className="block h-1 overflow-hidden rounded-full bg-rp-fill">
-            <span className="block h-full rounded-full" style={{ width: `${progress}%`, backgroundColor: color.colorVar }} />
+          <span className="block h-1 overflow-hidden rounded-xs bg-rp-fill">
+            <span className="block h-full rounded-xs" style={{ width: `${progress}%`, backgroundColor: color.colorVar }} />
           </span>
         </span>
         <span className="mono w-10 shrink-0 text-right text-small text-rp-muted">

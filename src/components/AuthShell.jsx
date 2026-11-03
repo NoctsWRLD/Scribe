@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import Logo from './Logo';
-import LanguageSelect from './LanguageSelect';
 import { useI18n } from '../i18n';
 import { addDaysToDateKey, formatDate, getSlovenianDateKey } from '../utils/dates';
 import { getWeekStart } from '../utils/rail';
@@ -26,11 +25,11 @@ export function AuthShell({ title, subtitle, error, notice, children, footer }) 
       <aside className="hidden flex-col justify-between border-r border-rp-line p-10 lg:flex xl:p-14">
         <Link to="/" className="flex items-center gap-3 self-start" aria-label={t('Scribe domov')}>
           <Logo size={36} />
-          <span className="font-display text-lg font-bold tracking-tight text-rp-text">Scribe</span>
+          <span className="font-display text-lg font-semibold tracking-tight text-rp-text">Scribe</span>
         </Link>
 
         <div className="max-w-md">
-          <p className="font-display text-4xl font-bold leading-[1.08] tracking-tight text-rp-text xl:text-5xl">
+          <p className="font-display text-4xl font-semibold leading-[1.02] tracking-tight text-rp-text xl:text-5xl">
             {t('Vsak rok na enem mestu, preden te preseneti.')}
           </p>
           <div className="mt-10" aria-hidden="true">
@@ -61,9 +60,8 @@ export function AuthShell({ title, subtitle, error, notice, children, footer }) 
         <div className="flex items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-2.5 lg:invisible" aria-label={t('Scribe domov')}>
             <Logo size={30} />
-            <span className="font-display text-[17px] font-bold tracking-tight text-rp-text">Scribe</span>
+            <span className="font-display text-[18px] font-semibold tracking-tight text-rp-text">Scribe</span>
           </Link>
-          <LanguageSelect compact />
         </div>
 
         <div className="rise mx-auto my-auto w-full max-w-sm py-10">

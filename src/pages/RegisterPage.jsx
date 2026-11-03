@@ -121,7 +121,7 @@ export default function RegisterPage() {
             {[0, 1, 2].map((step) => (
               <span
                 key={step}
-                className={`h-1 flex-1 rounded-full ${step < score ? 'bg-rp-mark' : 'bg-rp-fill'}`}
+                className={`h-1 flex-1 rounded-xs ${step < score ? 'bg-rp-mark' : 'bg-rp-fill'}`}
               />
             ))}
           </div>

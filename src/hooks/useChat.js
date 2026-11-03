@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   collection, query, orderBy, limit, where, startAt, endAt,
-  onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc,
-  serverTimestamp,
+  onSnapshot, deleteDoc, doc, updateDoc, setDoc, getDoc,
+  serverTimestamp, runTransaction,
 } from 'firebase/firestore';
 import { db } from '../firebaseDb';
 import { useAuth } from '../contexts/AuthContext';
@@ -306,13 +306,25 @@ export async function sendMessage(chatId, user, text, fileData = null) {
   if (!clean && !fileData) return;
   const senderName = user.displayName || 'Učenec';
 
-  await addDoc(collection(db, 'chats', chatId, 'messages'), {
-    text: clean,
-    senderId: user.uid,
-    senderName,
-    senderInitial: (senderName[0] || '?').toUpperCase(),
-    timestamp: serverTimestamp(),
-    ...(fileData || {}),
+  const messageRef = doc(collection(db, 'chats', chatId, 'messages'));
+  const throttleRef = doc(db, 'chats', chatId, 'senders', user.uid);
+  await runTransaction(db, async (transaction) => {
+    const previous = await transaction.get(throttleRef);
+    const lastSent = previous.exists() ? previous.data().lastSentAt?.toMillis?.() : 0;
+    if (lastSent && Date.now() - lastSent < 2000) {
+      const error = new Error('CHAT_RATE_LIMIT');
+      error.code = 'chat/rate-limit';
+      throw error;
+    }
+    transaction.set(messageRef, {
+      text: clean,
+      senderId: user.uid,
+      senderName,
+      senderInitial: (senderName[0] || '?').toUpperCase(),
+      timestamp: serverTimestamp(),
+      ...(fileData || {}),
+    });
+    transaction.set(throttleRef, { uid: user.uid, lastSentAt: serverTimestamp(), messageId: messageRef.id });
   });
 }
 

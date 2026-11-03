@@ -26,9 +26,10 @@ the value ranges **and** the owner on the server.
 | `users/{uid}` | owner | owner; fixed key set; `email`, `createdAt`, `photoURL` immutable after create |
 | `userCodes/{code}` | any signed-in account | create only for a code the creator's profile names; never rewritten; owner may delete |
 | `publicProfiles/{uid}` | any signed-in account | owner; `searchName` must equal the lower-cased `displayName` |
-| `subjects`, `tasks`, `exams`, `flashcards`, `focusSessions` | owner | owner; `subjectId` must be one of the writer's own subjects |
+| `subjects`, `tasks`, `exams`, `flashcards`, `focusSessions`, `scheduleEvents` | owner | owner; event fields have fixed types and bounds |
 | `friendRequests/{pairId}` | the two parties | create by the sender with server-derived names; status changed only by the recipient; deleted by either side |
-| `chats/{chatId}/messages` | channel members | create by the sender with a server-derived name; delete by the sender only |
+| `chats/{chatId}/messages` | channel members | create by the sender with a server-derived name and matching 2-second sender gate; delete by the sender only |
+| `chats/{chatId}/senders/{uid}` | that sender | internal rate-limit marker; only updated atomically with a new message |
 | everything else | denied | denied |
 
 `chats/general`, `chats/subject_*`, `chats/school_*` and `chats/<uidA>_<uidB>`
@@ -67,8 +68,18 @@ author does not own.
    run in `npm test` — it needs Java and the emulator — but it is the only way
    to prove a rule still refuses what it refused last month.
 
-Nothing above widened what a hostile client can do. The one rule that grew —
-`locale` — trades an unbounded string for a five-item enum.
+6. **Chat flood protection.** The composer prevents duplicate submissions and
+   enforces a two-second cooldown. Each message is written atomically with a
+   per-chat sender marker; Firestore rules require that marker and reject a
+   second message from the same account in the interval. This does not stop
+   coordinated spam from multiple accounts; App Check and project monitoring
+   remain necessary for broader abuse control.
+7. **Calendar events.** `scheduleEvents` is owner-only, with bounded titles and
+   notes and validated date/time formats. Schedule reads for tasks and exams
+   keep their existing owner-only rules.
+
+The added write paths are limited to a student's own event data and a two-second
+chat sender marker paired with one message. `locale` remains a five-item enum.
 
 ## 4. Accepted risks
 
@@ -96,6 +107,12 @@ These are decisions, not oversights. Each one names the fix if it ever bites.
 - **No Content-Security-Policy yet.** A working policy has to allow the Firebase
   origins, `wss:` and inline style attributes; shipping one untested would
   break sign-in in production. The cheap headers are in place instead.
+  `index.html` carries one inline script — the theme boot, which has to run
+  before the bundle to avoid a flash of the wrong palette. When a policy does
+  land, that script is pinned by hash rather than allowed with
+  `'unsafe-inline'`:
+  `sha256-/ecnCppDZanYn8sUwfwrYAPltbFGTOxTaN0tRe0YwHg=`
+  (recompute it in the same commit as any edit to that script).
 - **Importing the same export twice is refused.** `importAccountData` writes
   with `set()` and the ids from the file; against an existing document that is
   an update, and the rules keep `createdAt` immutable. Not a hole — a

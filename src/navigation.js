@@ -1,10 +1,11 @@
 /**
- * One navigation definition, three surfaces.
+ * One navigation definition.
  *
- * The old build exposed the same eleven destinations three times — two
- * dropdowns, a hamburger sheet and a bottom bar. The new shell shows the
- * side rail on wide screens and the bottom bar on narrow ones; this file is
- * the only place that decides what exists.
+ * Učenje and Skupnost are the destinations; the account links are the two
+ * things that belong to the person rather than to the school day. The shell
+ * renders the groups in the top bar (inline from `lg`, in the menu sheet
+ * below it) and the account links in the account menu and that sheet. This
+ * file is the only place that decides what exists.
  */
 export const NAV_GROUPS = [
   {
@@ -26,9 +27,6 @@ export const NAV_GROUPS = [
     ],
   },
 ];
-
-/** The five destinations the mobile bottom bar carries. */
-export const PRIMARY_PATHS = ['/dashboard', '/tasks', '/exams', '/schedule', '/chat'];
 
 export const ACCOUNT_LINKS = [
   { to: '/profile', label: 'Moj profil', icon: 'user' },

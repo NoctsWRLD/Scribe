@@ -87,31 +87,30 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <section className="rise margin-rule" aria-labelledby="dash-title">
-        <p className="mono text-small text-rp-muted lg:hidden">{dateLabel}</p>
-        <h1 id="dash-title" className="mt-2 max-w-2xl text-page text-rp-text">
+        <p className="eyebrow">{dateLabel}</p>
+        <h1 id="dash-title" className="mt-3 max-w-2xl text-page text-rp-text">
           {greeting}, {displayName}.
         </h1>
-        <p className="mt-2.5 max-w-xl text-body text-rp-muted">
+        <p className="mt-3 max-w-xl text-body text-rp-muted">
           {pending.length === 0
             ? t('Nič odprtega. Dodaj naslednjo stvar ali ponovi kartice.')
             : t('Izberi eno nalogo in ji nameni 25 minut fokusa.')}
         </p>
 
         <StudyRail
-          className="mt-6 max-w-2xl"
+          className="mt-7 max-w-2xl"
           segments={rail}
           label={t('Učni pas tedna')}
           caption={t('Učni pas tedna')}
         />
 
-        <div className="mt-6 flex flex-wrap gap-2">
+        <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
           <button type="button" onClick={openTaskModal} disabled={subjectsLoading} className="btn btn-primary disabled:opacity-60">
             {t('Nova naloga')}
           </button>
-          <Link to="/flashcards" className="btn">
+          <Link to="/flashcards" className="link-signal">
             {t('Ponovi kartice')}{dueCards > 0 ? ` (${dueCards})` : ''}
           </Link>
-          <Link to="/exams" className="btn">{t('Preverjanja')}</Link>
         </div>
       </section>
 
@@ -152,12 +151,6 @@ export default function DashboardPage() {
               compact
               title={t('Prazno. In to je v redu.')}
               description={t('Dodaj prvo nalogo za ta teden ali ponovi kartice.')}
-              action={
-                <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={openTaskModal} className="btn btn-primary !py-2.5 !text-small">{t('Dodaj nalogo')}</button>
-                  <Link to="/flashcards" className="btn !py-2.5 !text-small">{t('Kartice')}</Link>
-                </div>
-              }
             />
           )}
         </section>
@@ -203,14 +196,14 @@ export default function DashboardPage() {
                     </span>
                   </span>
                   <div
-                    className="mt-2 h-1 overflow-hidden rounded-full bg-rp-fill"
+                    className="mt-2 h-1 overflow-hidden rounded-xs bg-rp-fill"
                     role="progressbar"
                     aria-valuenow={progress}
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-label={t('Napredek pri predmetu {name}', { name: subject.name })}
                   >
-                    <div className="h-full rounded-full" style={{ width: `${progress}%`, backgroundColor: color.colorVar }} />
+                    <div className="h-full rounded-xs" style={{ width: `${progress}%`, backgroundColor: color.colorVar }} />
                   </div>
                 </Link>
                 </li>

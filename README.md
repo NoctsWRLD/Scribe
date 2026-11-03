@@ -50,7 +50,7 @@ Ključne datoteke so organizirane znotraj `src` mape, in sicer:
 
 1.  **Odprite mapo aplikacije:**
     ```bash
-    cd ~/projects/NRPIT/Aplikacija
+    cd path/to/Scribe
     ```
 
 2.  **Namestite odvisnosti:**

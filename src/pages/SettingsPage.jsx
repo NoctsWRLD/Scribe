@@ -339,21 +339,21 @@ export default function SettingsPage() {
         <Note note={codeNote} />
       </SettingsSection>
 
-      <SettingsSection id="videz" title={t('Videz')}>
-        <div className="flex gap-1 self-start rounded-sm border border-rp-line p-1" role="group" aria-label={t('Izbira videza')}>
-          {THEMES.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setTheme(item.id)}
-              aria-pressed={theme === item.id}
-              className={`min-h-9 rounded-xs px-4 text-small font-semibold transition-colors ${
-                theme === item.id ? 'bg-rp-mark text-rp-mark-ink' : 'text-rp-muted hover:text-rp-text'
-              }`}
+      <SettingsSection id="videz" title={t('Videz')} description={t('Tema, kontrast in gibanje. Velja takoj in se shrani v tem brskalniku.')}>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="field-label" htmlFor="pref-theme">{t('Tema')}</label>
+            <select
+              id="pref-theme"
+              value={theme}
+              onChange={(event) => setTheme(event.target.value)}
+              className="field"
             >
-              {t(item.name)}
-            </button>
-          ))}
+              {THEMES.map((item) => (
+                <option key={item.id} value={item.id}>{t(item.name)}</option>
+              ))}
+            </select>
+          </div>
         </div>
         <div className="mt-4">
           <Toggle

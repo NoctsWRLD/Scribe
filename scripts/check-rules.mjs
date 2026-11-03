@@ -18,6 +18,7 @@ if (!host) {
 }
 
 const base = `http://${host}/v1/projects/demo-scribe/databases/(default)/documents`;
+const documentRoot = 'projects/demo-scribe/databases/(default)/documents';
 
 /** An unsigned token is enough: the emulator does not verify signatures. */
 function token(uid) {
@@ -40,10 +41,20 @@ async function call(method, path, { uid, body, mask } = {}) {
   return { status: response.status, text: await response.text() };
 }
 
+async function commit(uid, writes) {
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token(uid)}` };
+  const response = await fetch(`${base}:commit`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ writes }),
+  });
+  return { status: response.status, text: await response.text() };
+}
+
 const results = [];
-function check(name, actual, expected) {
+function check(name, actual, expected, detail = '') {
   const passed = actual === expected;
-  results.push(`${passed ? 'PASS' : 'FAIL'}  ${name} — got ${actual}, expected ${expected}`);
+  results.push(`${passed ? 'PASS' : 'FAIL'}  ${name} — got ${actual}, expected ${expected}${passed || !detail ? '' : `; ${detail}`}`);
 }
 
 const string = (value) => ({ stringValue: value });
@@ -77,6 +88,12 @@ function account(uid, code) {
 // ── Seed: two accounts, and one code already owned by the second ─────────────
 await call('PATCH', '/users/A', { uid: 'admin', body: account('A', 'AAAAAA') });
 await call('PATCH', '/users/B', { uid: 'admin', body: account('B', 'BBBBBB') });
+for (const uid of ['A', 'B']) {
+  await call('PATCH', `/publicProfiles/${uid}`, {
+    uid: 'admin',
+    body: { fields: { displayName: string(uid), searchName: string(uid.toLowerCase()), photoURL: string(''), createdAt: { timestampValue: timestamp } } },
+  });
+}
 for (const [code, uid] of [['AAAAAA', 'A'], ['BBBBBB', 'B']]) {
   await call('PATCH', `/userCodes/${code}`, {
     uid: 'admin',
@@ -120,6 +137,54 @@ response = await call('PATCH', '/users/A', {
   mask: ['friendCode'],
 });
 check('an unused code can be taken', response.status, 200);
+
+// â”€â”€ Calendar events are private and validate timestamps â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+response = await commit('A', [{
+  update: {
+    name: `${documentRoot}/scheduleEvents/eventA`,
+    fields: {
+      title: string('Study group'), date: string('2026-11-05'), startTime: string('16:00'),
+      description: string(''), uid: string('A'),
+    },
+  },
+  updateTransforms: [{ fieldPath: 'createdAt', setToServerValue: 'REQUEST_TIME' }],
+}]);
+check('an owner can create a schedule event', response.status, 200, response.text);
+response = await call('GET', '/scheduleEvents/eventA', { uid: 'B' });
+check('another account cannot read a schedule event', response.status, 403);
+
+// â”€â”€ Messages require an atomic, rate-limited sender marker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const messageWrite = (id, text) => ({
+  update: {
+    name: `${documentRoot}/chats/general/messages/${id}`,
+    fields: { text: string(text), senderId: string('A'), senderName: string('A'), senderInitial: string('A') },
+  },
+  currentDocument: { exists: false },
+  updateTransforms: [{ fieldPath: 'timestamp', setToServerValue: 'REQUEST_TIME' }],
+});
+const senderCreate = (id) => ({
+  update: {
+    name: `${documentRoot}/chats/general/senders/A`,
+    fields: { uid: string('A'), messageId: string(id) },
+  },
+  currentDocument: { exists: false },
+  updateTransforms: [{ fieldPath: 'lastSentAt', setToServerValue: 'REQUEST_TIME' }],
+});
+response = await commit('A', [messageWrite('first', 'Hello'), senderCreate('first')]);
+check('a message and its sender gate can be created atomically', response.status, 200, response.text);
+response = await commit('A', [messageWrite('without-gate', 'No gate')]);
+check('a message without a sender gate is refused', response.status, 403, response.text);
+response = await commit('A', [
+  messageWrite('too-soon', 'Spam'),
+  {
+    update: {
+      name: `${documentRoot}/chats/general/senders/A`,
+      fields: { uid: string('A'), messageId: string('too-soon') },
+    },
+    updateTransforms: [{ fieldPath: 'lastSentAt', setToServerValue: 'REQUEST_TIME' }],
+  },
+]);
+check('a message sent inside the cooldown is refused', response.status, 403, response.text);
 
 // ── The default deny ─────────────────────────────────────────────────────────
 response = await call('DELETE', '/users/A', { uid: 'B' });

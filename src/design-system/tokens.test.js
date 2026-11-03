@@ -146,9 +146,21 @@ describe('token system', () => {
 
 describe('type and spacing roles', () => {
   it('pairs a display face, a reading face and a mono face', () => {
-    expect(css).toMatch(/--font-display:/);
-    expect(css).toMatch(/--font-sans:/);
-    expect(css).toMatch(/--font-mono:/);
+    expect(css).toMatch(/--font-display: 'Fraunces'/);
+    expect(css).toMatch(/--font-sans: 'Karla'/);
+    expect(css).toMatch(/--font-mono: 'JetBrains Mono'/);
+  });
+
+  it('serves all three faces from this origin', () => {
+    for (const file of ['fraunces-latin', 'karla-latin', 'jetbrains-mono-latin']) {
+      expect(css, `missing @font-face source ${file}`).toContain(`fonts/${file}.woff2`);
+    }
+  });
+
+  it('does not fall back to the previous faces', () => {
+    for (const retired of ['Space Grotesk', 'DM Sans', 'Geist']) {
+      expect(css, `${retired} is still referenced`).not.toMatch(new RegExp(retired));
+    }
   });
 
   it('builds the spacing scale on a 4px base unit', () => {
@@ -156,5 +168,39 @@ describe('type and spacing roles', () => {
     for (const step of scale) {
       expect(css, `missing ${step}`).toContain(step);
     }
+  });
+
+  it('binds every display size to the display face', () => {
+    const block = css.slice(css.indexOf('@layer utilities'));
+    expect(block).toContain('font-family: var(--font-display)');
+    for (const role of ['.text-display', '.text-hero', '.text-page', '.text-title']) {
+      expect(block, `${role} is not bound to the display face`).toContain(role);
+    }
+  });
+});
+
+describe('shape', () => {
+  it('cuts every corner to one 2px step', () => {
+    for (const step of ['', '-xs', '-sm', '-md', '-lg', '-xl', '-2xl']) {
+      expect(css, `--radius${step} is not 2px`).toContain(`--radius${step}: 2px;`);
+    }
+  });
+
+  it('never uses a pill for a bar or a panel', () => {
+    const code = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(code).not.toMatch(/border-radius:\s*(9|99|999|9999)px/);
+  });
+});
+
+describe('the shipped page', () => {
+  const html = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8');
+
+  it('boots into the dark theme before the first paint', () => {
+    expect(html).toMatch(/<html[^>]*data-theme="noc"/);
+  });
+
+  it('preloads the two reading-critical faces', () => {
+    expect(html).toContain('fraunces-latin.woff2');
+    expect(html).toContain('karla-latin.woff2');
   });
 });

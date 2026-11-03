@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useSubjects, useTasks } from '../hooks/useFirestore';
+import { useExams, useScheduleEvents } from '../hooks/useStudy';
 import TaskModal from '../components/TaskModal';
-import ScheduleImportModal from '../components/ScheduleImportModal';
+import Modal from '../components/Modal';
 import { getSubjectColor } from '../utils/colors';
-import { ChevronLeftIcon, ChevronRightIcon, ImageIcon, PlusIcon } from '../components/icons';
+import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, TrashIcon } from '../components/icons';
 import { getWeekStart } from '../utils/rail';
 import { addDaysToDateKey, formatDate, getSlovenianDateKey } from '../utils/dates';
 import { useI18n } from '../i18n';
@@ -14,14 +15,19 @@ import { useI18n } from '../i18n';
  * A task opens its form; ticking it off happens in Naloge.
  */
 export default function SchedulePage() {
-  const { t, tn, localeTag } = useI18n();
+  const { t, localeTag } = useI18n();
   const { subjects } = useSubjects();
-  const { tasks, addTask, addTasks, updateTask } = useTasks();
+  const { tasks, updateTask } = useTasks();
+  const { exams } = useExams();
+  const { events, addEvent, updateEvent, deleteEvent } = useScheduleEvents();
   const [weekOffset, setWeekOffset] = useState(0);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
   const [editTask, setEditTask] = useState(null);
-  const [preselectedDate, setPreselectedDate] = useState('');
+  const [editEvent, setEditEvent] = useState(null);
+  const [eventOpen, setEventOpen] = useState(false);
+  const [eventDate, setEventDate] = useState('');
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventTime, setEventTime] = useState('');
+  const [eventDescription, setEventDescription] = useState('');
 
   const todayStr = getSlovenianDateKey();
   const weekStart = useMemo(() => addDaysToDateKey(getWeekStart(todayStr), weekOffset * 7), [todayStr, weekOffset]);
@@ -30,50 +36,78 @@ export default function SchedulePage() {
   const byDay = useMemo(() => {
     const map = new Map(weekDays.map((day) => [day, []]));
     for (const task of tasks) {
-      if (!task.completed && map.has(task.dueDate)) map.get(task.dueDate).push(task);
+      if (!task.completed && map.has(task.dueDate)) map.get(task.dueDate).push({ kind: 'task', item: task });
     }
+    for (const exam of exams) if (map.has(exam.date)) map.get(exam.date).push({ kind: 'exam', item: exam });
+    for (const event of events) if (map.has(event.date)) map.get(event.date).push({ kind: 'event', item: event });
+    for (const entries of map.values()) entries.sort((a, b) => (a.item.startTime || '99:99').localeCompare(b.item.startTime || '99:99'));
     return map;
-  }, [tasks, weekDays]);
-  const weekTotal = weekDays.reduce((sum, day) => sum + byDay.get(day).length, 0);
-  const taskForms = { one: t('odprta naloga'), two: t('odprti nalogi'), few: t('odprte naloge'), other: t('odprtih nalog') };
+  }, [tasks, exams, events, weekDays]);
 
   const subjectOf = (task) => subjects.find((subject) => subject.id === task.subjectId) || null;
 
-  function addOn(day) {
-    setEditTask(null);
-    setPreselectedDate(day);
-    setModalOpen(true);
+  function addEventOn(day) {
+    setEditEvent(null);
+    setEventOpen(true);
+    setEventDate(day);
+    setEventTitle('');
+    setEventTime('');
+    setEventDescription('');
   }
 
   function edit(task) {
     setEditTask(task);
-    setPreselectedDate('');
-    setModalOpen(true);
   }
 
-  function handleSave(data) {
-    const finalData = preselectedDate && !data.dueDate ? { ...data, dueDate: preselectedDate } : data;
-    if (editTask) updateTask(editTask.id, finalData);
-    else addTask(finalData);
-    setEditTask(null);
-    setPreselectedDate('');
+  function openEvent(event) {
+    setEditEvent(event);
+    setEventOpen(true);
+    setEventDate(event.date);
+    setEventTitle(event.title);
+    setEventTime(event.startTime || '');
+    setEventDescription(event.description || '');
+  }
+
+  async function saveEvent(event) {
+    event.preventDefault();
+    const data = { title: eventTitle.trim(), date: eventDate, startTime: eventTime, description: eventDescription.trim() };
+    if (!data.title || !data.date) return;
+    if (editEvent) await updateEvent(editEvent.id, data);
+    else await addEvent(data);
+    setEditEvent(null);
+    setEventOpen(false);
+    setEventDate('');
   }
 
   const weekLabel = `${formatDate(weekDays[0], { day: 'numeric', month: 'short' }, localeTag)} – ${formatDate(weekDays[6], { day: 'numeric', month: 'short', year: 'numeric' }, localeTag)}`;
 
-  function TaskLine({ task, compact }) {
-    const subject = subjectOf(task);
+  function ScheduleItem({ entry, compact }) {
+    const { kind, item } = entry;
+    const subject = item.subjectId ? subjectOf(item) : null;
     const color = subject ? getSubjectColor(subject.colorIndex) : null;
+    const label = kind === 'task' ? item.title : kind === 'exam' ? item.title : item.title;
+    const borderColor = kind === 'exam' ? 'var(--rp-danger)' : color?.colorVar || 'var(--rp-line-strong)';
+    const classes = `block w-full border-l-2 text-left transition-colors hover:bg-rp-overlay ${compact ? 'py-1 pl-2 pr-1' : 'py-2.5 pl-3 pr-2'}`;
     return (
-      <button
-        type="button"
-        onClick={(event) => { event.stopPropagation(); edit(task); }}
-        className={`block w-full border-l-2 text-left transition-colors hover:bg-rp-overlay ${compact ? 'py-1 pl-2 pr-1' : 'py-2.5 pl-3 pr-2'}`}
-        style={{ borderLeftColor: color?.colorVar || 'var(--rp-line-strong)' }}
-      >
-        <span className={`block truncate font-semibold text-rp-text ${compact ? 'text-[12px] leading-tight' : 'text-body'}`}>{task.title}</span>
-        {subject && <span className={`block truncate text-rp-muted ${compact ? 'text-[11px]' : 'text-small'}`}>{subject.name}</span>}
-      </button>
+      <div className="flex min-w-0 items-start gap-1" style={{ borderLeftColor: borderColor }}>
+        <button
+          type="button"
+          onClick={() => kind === 'task' ? edit(item) : kind === 'event' ? openEvent(item) : undefined}
+          className={`${classes} ${kind === 'exam' ? 'cursor-default' : ''}`}
+          style={{ borderLeftColor: borderColor }}
+          aria-label={kind === 'exam' ? `${t('Preverjanje')}: ${label}` : label}
+        >
+          <span className={`block truncate font-semibold text-rp-text ${compact ? 'text-[12px] leading-tight' : 'text-body'}`}>{label}</span>
+          <span className={`block truncate text-rp-muted ${compact ? 'text-[11px]' : 'text-small'}`}>
+            {kind === 'task' ? subject?.name : kind === 'exam' ? `${t('Preverjanje')}${subject ? ` · ${subject.name}` : ''}` : `${t('Dogodek')}${item.startTime ? ` · ${item.startTime}` : ''}`}
+          </span>
+        </button>
+        {kind === 'event' && (
+          <button type="button" onClick={() => { if (window.confirm(t('Izbrišem ta dogodek?'))) deleteEvent(item.id); }} className="btn btn-icon shrink-0 border-transparent bg-transparent text-rp-muted hover:!text-rp-danger" aria-label={t('Izbriši dogodek {title}', { title: item.title })}>
+            <TrashIcon className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
     );
   }
 
@@ -104,20 +138,8 @@ export default function SchedulePage() {
               <button type="button" onClick={() => setWeekOffset(0)} className="link-signal ml-1">{t('Ta teden')}</button>
             )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => setImportOpen(true)} className="btn">
-              <ImageIcon className="h-4 w-4" />
-              {t('Urnik iz slike')}
-            </button>
-            <button type="button" onClick={() => addOn(todayStr)} className="btn btn-primary">
-              <PlusIcon className="h-4 w-4" />
-              {t('Nova naloga')}
-            </button>
-          </div>
         </div>
-        <p className="mt-3 text-small text-rp-muted">
-          {weekTotal === 0 ? t('Ta teden ni odprtih nalog.') : tn(weekTotal, taskForms)}
-        </p>
+        <p className="mt-3 text-small text-rp-muted">{t('Prikazane so naloge, preverjanja in dogodki.')}</p>
       </section>
 
       {/* Wide screens: seven columns. */}
@@ -126,25 +148,20 @@ export default function SchedulePage() {
           {weekDays.map((day) => {
             const isToday = day === todayStr;
             return (
-              <div key={day} className="flex min-w-0 flex-col">
+              <div key={day} className="flex min-w-0 flex-col" onContextMenu={(event) => { event.preventDefault(); addEventOn(day); }}>
                 <div className={`border-b px-2 py-2 ${isToday ? 'border-rp-accent' : 'border-rp-line'}`}>
-                  <p className={`text-[11px] font-semibold ${isToday ? 'text-rp-accent' : 'text-rp-muted'}`}>
-                    {formatDate(day, { weekday: 'short' }, localeTag)}
-                  </p>
-                  <p className={`tnum text-subtitle ${isToday ? 'text-rp-accent' : 'text-rp-text'}`}>
-                    {formatDate(day, { day: 'numeric' }, localeTag)}
-                  </p>
+                  <div className="flex items-center justify-between gap-1">
+                    <div>
+                      <p className={`text-[11px] font-semibold ${isToday ? 'text-rp-accent' : 'text-rp-muted'}`}>{formatDate(day, { weekday: 'short' }, localeTag)}</p>
+                      <p className={`tnum text-subtitle ${isToday ? 'text-rp-accent' : 'text-rp-text'}`}>{formatDate(day, { day: 'numeric' }, localeTag)}</p>
+                    </div>
+                    <button type="button" onClick={() => addEventOn(day)} aria-label={t('Dodaj dogodek za {day}', { day: formatDate(day, { weekday: 'long', day: 'numeric', month: 'long' }, localeTag) })} className="btn btn-icon border-transparent bg-transparent text-rp-muted">
+                      <PlusIcon className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
                 <div className="flex min-h-40 flex-1 flex-col gap-1 p-1">
-                  {byDay.get(day).map((task) => <TaskLine key={task.id} task={task} compact />)}
-                  <button
-                    type="button"
-                    onClick={() => addOn(day)}
-                    aria-label={t('Dodaj nalogo za {day}', { day: formatDate(day, { weekday: 'long', day: 'numeric', month: 'long' }, localeTag) })}
-                    className="mt-auto grid min-h-8 place-items-center text-rp-muted opacity-0 transition-opacity hover:bg-rp-overlay hover:text-rp-text focus-visible:opacity-100 [div:hover>&]:opacity-100"
-                  >
-                    <PlusIcon className="h-4 w-4" />
-                  </button>
+                  {byDay.get(day).map((entry) => <ScheduleItem key={`${entry.kind}-${entry.item.id}`} entry={entry} compact />)}
                 </div>
               </div>
             );
@@ -167,8 +184,8 @@ export default function SchedulePage() {
                   </h2>
                   <button
                     type="button"
-                    onClick={() => addOn(day)}
-                    aria-label={t('Dodaj nalogo za {day}', { day: formatDate(day, { weekday: 'long', day: 'numeric', month: 'long' }, localeTag) })}
+                    onClick={() => addEventOn(day)}
+                    aria-label={t('Dodaj dogodek za {day}', { day: formatDate(day, { weekday: 'long', day: 'numeric', month: 'long' }, localeTag) })}
                     className="btn btn-icon border-transparent bg-transparent text-rp-muted"
                   >
                     <PlusIcon className="h-4 w-4" />
@@ -176,7 +193,7 @@ export default function SchedulePage() {
                 </div>
                 {dayTasks.length > 0 && (
                   <div className="mb-1 grid gap-1">
-                    {dayTasks.map((task) => <TaskLine key={task.id} task={task} />)}
+                    {dayTasks.map((entry) => <ScheduleItem key={`${entry.kind}-${entry.item.id}`} entry={entry} />)}
                   </div>
                 )}
               </li>
@@ -185,23 +202,47 @@ export default function SchedulePage() {
         </ol>
       </section>
 
-      <ScheduleImportModal
-        key={importOpen ? 'open' : 'closed'}
-        isOpen={importOpen}
-        onClose={() => setImportOpen(false)}
-        subjects={subjects}
-        onImport={(rows) => addTasks(rows)}
-      />
-
       <TaskModal
-        isOpen={modalOpen}
-        onClose={() => { setModalOpen(false); setEditTask(null); setPreselectedDate(''); }}
-        onSave={handleSave}
+        isOpen={Boolean(editTask)}
+        onClose={() => setEditTask(null)}
+        onSave={(data) => { updateTask(editTask.id, data); setEditTask(null); }}
         subjects={subjects}
         task={editTask}
-        defaultDueDate={preselectedDate}
         defaultSubjectId={subjects[0]?.id || ''}
       />
+
+      <Modal
+        isOpen={eventOpen}
+        onClose={() => { setEventOpen(false); setEventDate(''); setEditEvent(null); }}
+        title={editEvent ? t('Uredi dogodek') : t('Dodaj dogodek')}
+        footer={(
+          <>
+            <button type="button" onClick={() => { setEventOpen(false); setEventDate(''); setEditEvent(null); }} className="btn">{t('Prekliči')}</button>
+            <button type="submit" form="schedule-event-form" className="btn btn-primary">{t('Shrani spremembe')}</button>
+          </>
+        )}
+      >
+        <form id="schedule-event-form" onSubmit={saveEvent} className="grid gap-4">
+          <div>
+            <label className="field-label" htmlFor="schedule-event-title">{t('Naslov dogodka')}</label>
+            <input id="schedule-event-title" required maxLength={120} value={eventTitle} onChange={(event) => setEventTitle(event.target.value)} className="field" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="field-label" htmlFor="schedule-event-date">{t('Datum')}</label>
+              <input id="schedule-event-date" type="date" required value={eventDate} onChange={(event) => setEventDate(event.target.value)} className="field" />
+            </div>
+            <div>
+              <label className="field-label" htmlFor="schedule-event-time">{t('Čas')}</label>
+              <input id="schedule-event-time" type="time" value={eventTime} onChange={(event) => setEventTime(event.target.value)} className="field" />
+            </div>
+          </div>
+          <div>
+            <label className="field-label" htmlFor="schedule-event-description">{t('Opomba')}</label>
+            <textarea id="schedule-event-description" maxLength={600} value={eventDescription} onChange={(event) => setEventDescription(event.target.value)} rows={2} className="field resize-none" />
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
