@@ -8,6 +8,7 @@ import { useFriends, useFriendCode, getDmChatId } from '../hooks/useChat';
 import SettingsSection from '../components/settings/SettingsSection';
 import DeleteAccountModal from '../components/settings/DeleteAccountModal';
 import LanguageSelect from '../components/LanguageSelect';
+import Select from '../components/Select';
 import { THEMES } from '../utils/themes';
 import { formatDate, getSlovenianDateKey } from '../utils/dates';
 import {
@@ -343,7 +344,7 @@ export default function SettingsPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="field-label" htmlFor="pref-theme">{t('Tema')}</label>
-            <select
+            <Select
               id="pref-theme"
               value={theme}
               onChange={(event) => setTheme(event.target.value)}
@@ -352,7 +353,7 @@ export default function SettingsPage() {
               {THEMES.map((item) => (
                 <option key={item.id} value={item.id}>{t(item.name)}</option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
         <div className="mt-4">
@@ -377,7 +378,7 @@ export default function SettingsPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="field-label" htmlFor="pref-focus">{t('Dolžina seje fokusa')}</label>
-            <select
+            <Select
               id="pref-focus"
               value={preferences.focusMinutes}
               onChange={(event) => setPreferences((previous) => ({ ...previous, focusMinutes: Number(event.target.value) }))}
@@ -386,7 +387,7 @@ export default function SettingsPage() {
               {FOCUS_OPTIONS.map((minutes) => (
                 <option key={minutes} value={minutes}>{tn(minutes, minuteForms)}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <label className="field-label" htmlFor="pref-start">{t('Kdaj se dan začne')}</label>
@@ -400,7 +401,7 @@ export default function SettingsPage() {
           </div>
           <div>
             <label className="field-label" htmlFor="pref-warning">{t('Opozori na rok')}</label>
-            <select
+            <Select
               id="pref-warning"
               value={preferences.deadlineWarningDays}
               onChange={(event) => setPreferences((previous) => ({ ...previous, deadlineWarningDays: Number(event.target.value) }))}
@@ -409,11 +410,11 @@ export default function SettingsPage() {
               {WARNING_OPTIONS.map((days) => (
                 <option key={days} value={days}>{t('{count} prej', { count: tn(days, dayForms) })}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <label className="field-label" htmlFor="pref-week">{t('Teden se začne z')}</label>
-            <select
+            <Select
               id="pref-week"
               value={preferences.weekStart}
               onChange={(event) => setPreferences((previous) => ({ ...previous, weekStart: event.target.value }))}
@@ -422,7 +423,7 @@ export default function SettingsPage() {
               {WEEK_STARTS.map((option) => (
                 <option key={option.id} value={option.id}>{t(option.label)}</option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
         <button type="button" onClick={handlePreferencesSave} className="btn btn-primary mt-5">

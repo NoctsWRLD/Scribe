@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSubjects, useTasks } from '../hooks/useFirestore';
 import TaskLedger from '../components/TaskLedger';
 import TaskModal from '../components/TaskModal';
+import Select from '../components/Select';
+import SubjectRequiredState from '../components/SubjectRequiredState';
 import Skeleton from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
@@ -21,7 +23,7 @@ export default function TasksPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t } = useI18n();
-  const { subjects, loading: subjectsLoading } = useSubjects();
+  const { subjects, loading: subjectsLoading, error: subjectsError } = useSubjects();
   const { tasks, loading, error, addTask, updateTask, deleteTask, setTasksCompleted, deleteTasks } = useTasks();
   const initialSubjectId = searchParams.get('subject') || '';
   const [modalOpen, setModalOpen] = useState(false);
@@ -82,6 +84,9 @@ export default function TasksPage() {
     if (wantsNewTask) navigate('/tasks', { replace: true });
   }
 
+  if (subjectsError) return <ErrorState message={subjectsError} />;
+  if (!subjectsLoading && subjects.length === 0) return <SubjectRequiredState pageTitle="Naloge" />;
+
   return (
     <div className="space-y-6">
       <section className="rise margin-rule flex flex-wrap items-end justify-between gap-4">
@@ -97,17 +102,6 @@ export default function TasksPage() {
           {t('Nova naloga')}
         </button>
       </section>
-
-      {!subjectsLoading && subjects.length === 0 && (
-        <section role="alert" className="note flex flex-wrap items-center justify-between gap-3" data-tone="warn">
-          <p className="max-w-lg text-body">
-            {t('Naloga vedno pripada predmetu. Ustvari prvega, nato se odpre obrazec za nalogo.')}
-          </p>
-          <button type="button" onClick={() => navigate('/subjects?create=1&from=task')} className="btn">
-            {t('Ustvari predmet')}
-          </button>
-        </section>
-      )}
 
       <section className="space-y-4" aria-label={t('Seznam nalog')}>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -141,7 +135,7 @@ export default function TasksPage() {
                 className="field !py-2.5 !pl-9 !text-small"
               />
             </label>
-            <select
+            <Select
               value={subjectFilter}
               onChange={(event) => setSubjectFilter(event.target.value)}
               aria-label={t('Filtriraj po predmetu')}
@@ -151,8 +145,8 @@ export default function TasksPage() {
               {subjects.map((subject) => (
                 <option key={subject.id} value={subject.id}>{subject.name}</option>
               ))}
-            </select>
-            <select
+            </Select>
+            <Select
               value={sortBy}
               onChange={(event) => setSortBy(event.target.value)}
               aria-label={t('Razvrsti naloge')}
@@ -160,7 +154,7 @@ export default function TasksPage() {
             >
               <option value="dueDate">{t('Po roku')}</option>
               <option value="createdAt">{t('Najnovejše')}</option>
-            </select>
+            </Select>
           </div>
         </div>
 

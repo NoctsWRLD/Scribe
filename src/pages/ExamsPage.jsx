@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useSubjects } from '../hooks/useFirestore';
 import { useExams } from '../hooks/useStudy';
 import ExamModal from '../components/ExamModal';
+import Select from '../components/Select';
 import Skeleton from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
+import SubjectRequiredState from '../components/SubjectRequiredState';
 import { EditIcon, TrashIcon } from '../components/icons';
 import { countdown } from '../utils/countdown';
 import { formatDate, getSlovenianDateKey } from '../utils/dates';
@@ -69,7 +71,7 @@ function ExamRow({ exam, subject, today, onEdit, onDelete }) {
 export default function ExamsPage() {
   const navigate = useNavigate();
   const { t } = useI18n();
-  const { subjects, loading: subjectsLoading } = useSubjects();
+  const { subjects, loading: subjectsLoading, error: subjectsError } = useSubjects();
   const { exams, loading, error, addExam, updateExam, deleteExam } = useExams();
   const [modalOpen, setModalOpen] = useState(false);
   const [editExam, setEditExam] = useState(null);
@@ -105,6 +107,9 @@ export default function ExamsPage() {
   };
   const subjectOf = (exam) => subjects.find((subject) => subject.id === exam.subjectId) || null;
 
+  if (subjectsError) return <ErrorState message={subjectsError} />;
+  if (!subjectsLoading && subjects.length === 0) return <SubjectRequiredState pageTitle="Preverjanja" />;
+
   return (
     <div className="space-y-8">
       <section className="rise margin-rule">
@@ -115,7 +120,7 @@ export default function ExamsPage() {
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <button type="button" onClick={openNew} className="btn btn-primary">{t('Novo preverjanje')}</button>
           {subjects.length > 1 && (
-            <select
+            <Select
               value={subjectFilter}
               onChange={(event) => setSubjectFilter(event.target.value)}
               className="field !w-auto"
@@ -125,7 +130,7 @@ export default function ExamsPage() {
               {subjects.map((subject) => (
                 <option key={subject.id} value={subject.id}>{subject.name}</option>
               ))}
-            </select>
+            </Select>
           )}
         </div>
       </section>

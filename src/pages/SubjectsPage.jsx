@@ -101,9 +101,11 @@ export default function SubjectsPage() {
             {t('Vsaka naloga, preverjanje in kartica pripada enemu predmetu. Odpri predmet za njegove naloge.')}
           </p>
         </div>
-        <button type="button" onClick={() => { setEditSubject(null); setModalOpen(true); }} className="btn btn-primary">
-          {t('Nov predmet')}
-        </button>
+        {!loading && subjects.length > 0 && (
+          <button type="button" onClick={() => { setEditSubject(null); setModalOpen(true); }} className="btn btn-primary">
+            {t('Nov predmet')}
+          </button>
+        )}
       </section>
 
       {fromTask && (

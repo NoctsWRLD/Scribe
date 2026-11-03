@@ -4,6 +4,7 @@ import { useI18n } from '../i18n';
 import { useSettings } from '../contexts/SettingsContext';
 import { THEMES } from '../utils/themes';
 import { GearIcon } from './icons';
+import Select from './Select';
 
 /**
  * The public pages have no account, so they carry one settings popover. It is
@@ -47,7 +48,7 @@ export default function PublicSettings() {
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="h-4 w-4 accent-[var(--rp-mark)]"
+        className="check-control"
       />
     </label>
   );
@@ -77,7 +78,7 @@ export default function PublicSettings() {
 
           <label className="mt-4 block">
             <span className="field-label">{t('Jezik')}</span>
-            <select
+            <Select
               value={locale}
               onChange={(event) => setLocale(event.target.value)}
               className="field"
@@ -87,12 +88,12 @@ export default function PublicSettings() {
                   {item.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
 
           <label className="mt-3 block">
             <span className="field-label">{t('Videz')}</span>
-            <select
+            <Select
               value={theme}
               onChange={(event) => setTheme(event.target.value)}
               className="field"
@@ -102,7 +103,7 @@ export default function PublicSettings() {
                   {t(item.name)}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
 
           <div className="mt-3">

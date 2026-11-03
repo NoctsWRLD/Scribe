@@ -36,7 +36,7 @@ export default function TaskCard({ task, subject, selected, onSelect, onEdit, on
         <input
           id={checkboxId}
           type="checkbox"
-          className="task-check"
+          className="check-control"
           checked={!!selected}
           onChange={() => onSelect(task)}
         />

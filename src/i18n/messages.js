@@ -50,6 +50,7 @@ const messages = {
   'Preklopi na svetli videz': ['Switch to the light look', 'Zum hellen Erscheinungsbild', 'Passa al tema chiaro', 'Prebaci na svijetli izgled'],
   'Jezik': ['Language', 'Sprache', 'Lingua', 'Jezik'],
   'Izberi jezik': ['Choose a language', 'Sprache wählen', 'Scegli la lingua', 'Odaberi jezik'],
+  'Izberi možnost.': ['Choose an option.', 'Wähle eine Option.', 'Scegli un’opzione.', 'Odaberi mogućnost.'],
 
   /* ── Landing ──────────────────────────────────────────────────────────── */
   'Ustvari račun': ['Create account', 'Konto erstellen', 'Crea un account', 'Stvori račun'],

@@ -32,7 +32,9 @@ export default function ExamCountdown({ subjects }) {
         <p className="mt-1 text-small text-rp-muted">
           {t('Ko izveš datum testa, ga zapiši. Tukaj se bo začelo odštevanje.')}
         </p>
-        <Link to="/exams" className="link-signal -ml-1.5 mt-2 inline-block">{t('Dodaj preverjanje')}</Link>
+        {subjects.length > 0 && (
+          <Link to="/exams" className="link-signal -ml-1.5 mt-2 inline-block">{t('Dodaj preverjanje')}</Link>
+        )}
       </section>
     );
   }

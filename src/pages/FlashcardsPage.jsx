@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useSubjects } from '../hooks/useFirestore';
 import { useFlashcards } from '../hooks/useStudy';
 import FlashcardModal from '../components/FlashcardModal';
+import Select from '../components/Select';
 import Skeleton from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
+import SubjectRequiredState from '../components/SubjectRequiredState';
 import { CardIcon, EditIcon, TrashIcon } from '../components/icons';
 import { useI18n } from '../i18n';
 
@@ -21,7 +23,7 @@ function shuffle(list) {
 export default function FlashcardsPage() {
   const navigate = useNavigate();
   const { t, tn } = useI18n();
-  const { subjects, loading: subjectsLoading } = useSubjects();
+  const { subjects, loading: subjectsLoading, error: subjectsError } = useSubjects();
   const { cards, loading, error, addCard, updateCard, deleteCard } = useFlashcards();
   const [deckId, setDeckId] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -65,6 +67,9 @@ export default function FlashcardsPage() {
     else setIndex(index + 1);
   }
 
+  if (subjectsError) return <ErrorState message={subjectsError} />;
+  if (!subjectsLoading && subjects.length === 0) return <SubjectRequiredState pageTitle="Kartice" />;
+
   return (
     <div className="space-y-8">
       <section className="rise margin-rule">
@@ -74,7 +79,7 @@ export default function FlashcardsPage() {
         </p>
         {subjects.length > 0 && (
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <select
+            <Select
               value={activeDeckId}
               onChange={(event) => { setDeckId(event.target.value); setStudying(false); }}
               className="field !w-auto"
@@ -83,7 +88,7 @@ export default function FlashcardsPage() {
               {subjects.map((subject) => (
                 <option key={subject.id} value={subject.id}>{subject.name}</option>
               ))}
-            </select>
+            </Select>
             <button type="button" onClick={startStudy} disabled={!deckCards.length} className="btn btn-primary">
               {t('Začni ponavljanje')}
             </button>

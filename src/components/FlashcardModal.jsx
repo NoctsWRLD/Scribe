@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Modal from './Modal';
+import Select from './Select';
 import { useI18n } from '../i18n';
 
 function CardForm({ onClose, onSave, subjects, card, defaultSubjectId }) {
@@ -32,12 +33,12 @@ function CardForm({ onClose, onSave, subjects, card, defaultSubjectId }) {
       <form id="card-form" onSubmit={handleSubmit} className="grid gap-4">
         <div>
           <label className="field-label" htmlFor="card-subject">{t('Predmet')}</label>
-          <select id="card-subject" className="field" value={subjectId} onChange={(event) => setSubjectId(event.target.value)} required>
+          <Select id="card-subject" className="field" value={subjectId} onChange={(event) => setSubjectId(event.target.value)} required>
             <option value="">{t('Izberi…')}</option>
             {subjects.map((subject) => (
               <option key={subject.id} value={subject.id}>{subject.name}</option>
             ))}
-          </select>
+          </Select>
         </div>
         <div>
           <label className="field-label" htmlFor="card-front">{t('Vprašanje')}</label>

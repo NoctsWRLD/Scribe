@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Modal from './Modal';
+import Select from './Select';
 import { useI18n } from '../i18n';
 
 function TaskForm({ onClose, onSave, subjects, task, defaultSubjectId, defaultDueDate }) {
@@ -52,12 +53,12 @@ function TaskForm({ onClose, onSave, subjects, task, defaultSubjectId, defaultDu
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="field-label" htmlFor="task-subject">{t('Predmet')}</label>
-            <select id="task-subject" required value={subjectId} onChange={(event) => setSubjectId(event.target.value)} className="field">
+            <Select id="task-subject" required value={subjectId} onChange={(event) => setSubjectId(event.target.value)} className="field">
               <option value="" disabled>{t('Izberi predmet')}</option>
               {subjects.map((subject) => (
                 <option key={subject.id} value={subject.id}>{subject.name}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <label className="field-label" htmlFor="task-due">{t('Rok oddaje')}</label>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Modal from './Modal';
+import Select from './Select';
 import { useI18n } from '../i18n';
 
 function ExamForm({ onClose, onSave, subjects, exam }) {
@@ -45,7 +46,7 @@ function ExamForm({ onClose, onSave, subjects, exam }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="field-label" htmlFor="exam-subject">{t('Predmet')}</label>
-            <select
+            <Select
               id="exam-subject"
               className="field"
               value={subjectId}
@@ -56,7 +57,7 @@ function ExamForm({ onClose, onSave, subjects, exam }) {
               {subjects.map((subject) => (
                 <option key={subject.id} value={subject.id}>{subject.name}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <label className="field-label" htmlFor="exam-date">{t('Datum')}</label>

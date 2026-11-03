@@ -104,14 +104,22 @@ export default function DashboardPage() {
           caption={t('Učni pas tedna')}
         />
 
-        <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
-          <button type="button" onClick={openTaskModal} disabled={subjectsLoading} className="btn btn-primary disabled:opacity-60">
-            {t('Nova naloga')}
-          </button>
-          <Link to="/flashcards" className="link-signal">
-            {t('Ponovi kartice')}{dueCards > 0 ? ` (${dueCards})` : ''}
-          </Link>
-        </div>
+        {!subjectsLoading && (
+          <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
+            {subjects.length === 0 ? (
+              <Link to="/subjects?create=1" className="btn btn-primary">{t('Ustvari predmet')}</Link>
+            ) : (
+              <>
+                <button type="button" onClick={openTaskModal} className="btn btn-primary">
+                  {t('Nova naloga')}
+                </button>
+                <Link to="/flashcards" className="link-signal">
+                  {t('Ponovi kartice')}{dueCards > 0 ? ` (${dueCards})` : ''}
+                </Link>
+              </>
+            )}
+          </div>
+        )}
       </section>
 
       {(tasksError || subjectsError) && (
@@ -150,7 +158,9 @@ export default function DashboardPage() {
             <EmptyState
               compact
               title={t('Prazno. In to je v redu.')}
-              description={t('Dodaj prvo nalogo za ta teden ali ponovi kartice.')}
+              description={subjects.length === 0
+                ? t('Naloge, preverjanja in kartice so povezani s predmetom. Ustvari enega, preden jih začneš uporabljati.')
+                : t('Dodaj prvo nalogo za ta teden ali ponovi kartice.')}
             />
           )}
         </section>
@@ -175,7 +185,6 @@ export default function DashboardPage() {
             compact
             title={t('Dodaj prvi predmet')}
             description={t('Dodaj prvi predmet, da razvrstiš naloge, preverjanja in kartice.')}
-            action={<Link to="/subjects" className="btn btn-primary !py-2.5 !text-small">{t('Odpri predmete')}</Link>}
           />
         ) : (
           <ul className="ledger grid sm:grid-cols-2 sm:gap-x-8">
