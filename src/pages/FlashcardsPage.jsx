@@ -159,7 +159,6 @@ export default function FlashcardsPage() {
               icon={<CardIcon className="h-5 w-5" />}
               title={t('Ta predmet še nima kartic')}
               description={t('Začni s 5 do 10 vprašanji, ki se pogosto pojavijo na testih.')}
-              action={<button type="button" onClick={openNew} className="btn btn-primary">{t('Dodaj kartico')}</button>}
             />
           ) : (
             <ul className="ledger">

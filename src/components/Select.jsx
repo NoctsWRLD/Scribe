@@ -3,6 +3,12 @@ import { createPortal } from 'react-dom';
 import { ChevronDownIcon, CheckIcon } from './icons';
 import { useI18n } from '../i18n';
 
+function optionText(node) {
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(optionText).join('');
+  return isValidElement(node) ? optionText(node.props.children) : '';
+}
+
 /** Theme-native select popover with a hidden native control for form validation. */
 export default function Select({
   id,
@@ -42,10 +48,21 @@ export default function Select({
       const desired = Math.min(options.length * 40 + 8, 256);
       const opensUp = below < desired && above > below;
       const maxHeight = Math.max(80, Math.min(desired, opensUp ? above : below));
+      const maxWidth = Math.max(0, window.innerWidth - 32);
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      if (context) context.font = window.getComputedStyle(buttonRef.current).font;
+      const widestOption = options.reduce((widest, option) => {
+        const textWidth = context?.measureText(optionText(option.props.children)).width || 0;
+        return Math.max(widest, textWidth + 56);
+      }, rect.width);
+      const width = Math.min(widestOption, maxWidth);
       setPosition({
-        left: rect.left,
+        left: Math.max(16, Math.min(rect.left, window.innerWidth - width - 16)),
         top: opensUp ? rect.top - maxHeight - 6 : rect.bottom + 6,
-        width: rect.width,
+        width,
+        minWidth: rect.width,
+        maxWidth,
         maxHeight,
       });
     }
@@ -61,7 +78,7 @@ export default function Select({
       document.removeEventListener('scroll', positionList, true);
       document.removeEventListener('pointerdown', onPointerDown);
     };
-  }, [open, options.length]);
+  }, [open, options]);
 
   useEffect(() => {
     if (open) {
@@ -172,7 +189,7 @@ export default function Select({
         role="listbox"
         aria-label={ariaLabel || undefined}
         aria-labelledby={ariaLabel ? undefined : controlId}
-        style={position ? { left: position.left, top: position.top, width: position.width, maxHeight: position.maxHeight } : undefined}
+        style={position ? { left: position.left, top: position.top, width: position.width, minWidth: position.minWidth, maxWidth: position.maxWidth, maxHeight: position.maxHeight } : undefined}
         className={`floating modal-pop fixed z-[60] overflow-y-auto p-1 ${open ? '' : 'hidden'}`}
       >
         {options.map((option, index) => {
@@ -191,7 +208,7 @@ export default function Select({
               onKeyDown={(event) => handleOptionKeyDown(event, index)}
               className={`flex min-h-10 w-full items-center justify-between gap-3 px-3 py-2 text-left text-body transition-colors hover:bg-rp-overlay focus-visible:bg-rp-overlay focus-visible:outline-none ${isSelected ? 'font-semibold text-rp-accent' : 'text-rp-text'} disabled:cursor-not-allowed disabled:opacity-50`}
             >
-              <span className="min-w-0 truncate">{option.props.children}</span>
+              <span className="min-w-0 whitespace-normal [overflow-wrap:anywhere]">{option.props.children}</span>
               {isSelected && <CheckIcon className="h-4 w-4 shrink-0 text-rp-accent" />}
             </button>
           );

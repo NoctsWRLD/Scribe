@@ -92,9 +92,11 @@ export default function DashboardPage() {
           {greeting}, {displayName}.
         </h1>
         <p className="mt-3 max-w-xl text-body text-rp-muted">
-          {pending.length === 0
-            ? t('Nič odprtega. Dodaj naslednjo stvar ali ponovi kartice.')
-            : t('Izberi eno nalogo in ji nameni 25 minut fokusa.')}
+          {!subjectsLoading && subjects.length === 0
+            ? t('Naloge, preverjanja in kartice so povezani s predmetom. Ustvari enega, preden jih začneš uporabljati.')
+            : pending.length === 0
+              ? t('Nič odprtega. Dodaj naslednjo stvar ali ponovi kartice.')
+              : t('Izberi eno nalogo in ji nameni 25 minut fokusa.')}
         </p>
 
         <StudyRail

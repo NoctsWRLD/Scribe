@@ -143,7 +143,6 @@ export default function ExamsPage() {
         <EmptyState
           title={t('Ni zapisanih preverjanj')}
           description={t('Zapiši prvi test. Odštevanje se prikaže tudi na začetni strani.')}
-          action={<button type="button" onClick={openNew} className="btn btn-primary">{t('Dodaj preverjanje')}</button>}
         />
       ) : (
         <>

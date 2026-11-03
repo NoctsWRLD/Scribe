@@ -173,11 +173,6 @@ export default function TasksPage() {
                   ? t('Vse naloge so opravljene. Vzemi si zaslužen odmor.')
                   : t('Dodaj novo nalogo in jo razdeli na majhen, izvedljiv korak.')
             }
-            action={
-              !search && summary.pending === 0 && subjects.length > 0 ? (
-                <button type="button" onClick={openNewTask} className="btn btn-primary !py-2.5 !text-small">{t('Dodaj nalogo')}</button>
-              ) : null
-            }
           />
         ) : (
           <>
