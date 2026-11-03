@@ -1,11 +1,15 @@
 import { SparkIcon } from './icons';
 import { useI18n } from '../i18n';
+import LanguageSelect from './LanguageSelect';
 
 /** Shown when Firebase environment variables are missing. */
 export default function FirebaseSetupNotice() {
   const { t } = useI18n();
   return (
     <main className="relative grid min-h-dvh place-items-center overflow-hidden px-4 py-10">
+      <div className="absolute right-4 top-4">
+        <LanguageSelect compact />
+      </div>
       <section className="relative w-full max-w-xl" aria-labelledby="setup-title">
         <div className="text-rp-accent" aria-hidden="true"><SparkIcon className="h-6 w-6" /></div>
         <p className="mt-5 text-label text-rp-accent">{t('Nastavitev')}</p>

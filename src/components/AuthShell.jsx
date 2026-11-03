@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import Logo from './Logo';
 import { useI18n } from '../i18n';
+import LanguageSelect from './LanguageSelect';
 import { addDaysToDateKey, formatDate, getSlovenianDateKey } from '../utils/dates';
 import { getWeekStart } from '../utils/rail';
 
@@ -62,6 +63,7 @@ export function AuthShell({ title, subtitle, error, notice, children, footer }) 
             <Logo size={30} />
             <span className="font-display text-[18px] font-semibold tracking-tight text-rp-text">Scribe</span>
           </Link>
+          <LanguageSelect compact />
         </div>
 
         <div className="rise mx-auto my-auto w-full max-w-sm py-10">
